@@ -14,6 +14,6 @@ const imageSchema = new mongoose.Schema({
         ref: 'User',
         required:true
     }
-}, {timestamps:true});
+}, {timestamps:true, collection: 'files'});
 
 export const Image = mongoose.model("Image", imageSchema);

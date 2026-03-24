@@ -41,10 +41,7 @@ export const createUser = async (req, res) => {
         });
 
         await user.save();
-        
-        // Generate token
-        const token = generateToken(user._id, user.roll_no, user.email);
-        
+
         // Return user without password
         const userResponse = user.toObject();
         delete userResponse.password;
@@ -52,7 +49,6 @@ export const createUser = async (req, res) => {
         res.status(201).json({ 
             message: 'User created successfully', 
             user: userResponse,
-            token
         });
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
     dob: {
         type: Date
     }
-}, { timestamps: true });
+}, { timestamps: true, collection: 'users' });
 
 // Hash password before saving
 userSchema.pre('save', async function() {
@@ -36,7 +36,7 @@ userSchema.pre('save', async function() {
     }
     try {
         const salt = await bcrypt.genSalt(10);
-        this.password =  bcrypt.hash(this.password, salt);
+        this.password = await bcrypt.hash(this.password, salt);
     } catch (error) {
         console.log(error);
     }
