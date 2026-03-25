@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser'
 
 import fileRouter from './routes/fileUpload.routes.js';
 import userRouter from './routes/user.routes.js';
+import fabricRouter from './routes/fabricService.routes.js';
 
 
 const app = express();
@@ -22,6 +23,7 @@ app.use(express.static("public"));
 
 app.use("/api/fileUpload", fileRouter)
 app.use("/api/users", userRouter)
+app.use("/api/fabric", fabricRouter)
 
 export {app} ;
 

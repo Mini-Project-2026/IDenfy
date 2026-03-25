@@ -1,5 +1,6 @@
 import ipfs from '../utils/ipfs.js';
 import { Image } from '../models/file.models.js';
+import { storeCertificateOnBlockchain } from './fabricService.js';
 
 
 export const defaultControl =  (req, res)=>{
@@ -43,9 +44,17 @@ export const uploadImage =  async (req, res) => {
         user: userId
     });
 
+    // Automatically save CID on blockchain
+    try {
+        await storeCertificateOnBlockchain(userId, cid);
+    } catch (blockchainError) {
+        console.error('Failed to save on blockchain:', blockchainError);
+        // Still proceed, as file is uploaded to IPFS and DB
+    }
+
     res.status(201).json({
         success: true,
-        message: "Image uploaded successfully",
+        message: "Image uploaded successfully and CID saved on blockchain",
         cid: cid,
         url: url,
         imageId: saved._id
