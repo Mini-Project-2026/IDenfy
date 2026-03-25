@@ -18,7 +18,7 @@ async function main() {
         const ca = new FabricCAServices(caInfo.url);
 
         // Wallet folder create karna (Isse Git pe push mat karna)
-        const walletPath = path.join(process.cwd(), 'wallet');
+        const walletPath = path.join(__dirname, '..', 'wallet');
         const wallet = await Wallets.newFileSystemWallet(walletPath);
 
         // Check karein ki admin pehle se toh nahi hai

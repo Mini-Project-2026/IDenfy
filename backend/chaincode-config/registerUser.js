@@ -15,7 +15,7 @@ async function main() {
         const caURL = ccp.certificateAuthorities['ca.org1.example.com'].url;
         const ca = new FabricCAServices(caURL);
 
-        const walletPath = path.join(process.cwd(), 'wallet');
+        const walletPath = path.join(__dirname, '..', 'wallet');
         const wallet = await Wallets.newFileSystemWallet(walletPath);
 
         // 1. Check karein ki user pehle se hai ya nahi
