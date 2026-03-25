@@ -1,6 +1,6 @@
 import ipfs from '../utils/ipfs.js';
 import { Image } from '../models/file.models.js';
-import { storeCertificateOnBlockchain } from './fabricService.js';
+// import { storeCertificateOnBlockchain } from './fabricService.js';
 
 
 export const defaultControl =  (req, res)=>{
@@ -44,13 +44,13 @@ export const uploadImage =  async (req, res) => {
         user: userId
     });
 
-    // Automatically save CID on blockchain
-    try {
-        await storeCertificateOnBlockchain(userId, cid);
-    } catch (blockchainError) {
-        console.error('Failed to save on blockchain:', blockchainError);
-        // Still proceed, as file is uploaded to IPFS and DB
-    }
+    // // Automatically save CID on blockchain
+    // try {
+    //     await storeCertificateOnBlockchain(userId, cid);
+    // } catch (blockchainError) {
+    //     console.error('Failed to save on blockchain:', blockchainError);
+    //     // Still proceed, as file is uploaded to IPFS and DB
+    // }
 
     res.status(201).json({
         success: true,
@@ -82,11 +82,15 @@ export const getImage = async (req, res) => {
         });
     }
 
-    // Get images for authenticated user
-    let query = { user: userId };
-    
+    // Get images for authenticated user. Admins can fetch all or specific image by id.
+    let query = {};
+
+    if (req.user.role !== 'admin') {
+        query.user = userId;
+    }
+
     // If specific ID provided, fetch that specific image
-    if(id){
+    if (id) {
         query._id = id;
     }
 

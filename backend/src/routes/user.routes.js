@@ -5,32 +5,40 @@ import {
     getAllUsers,
     getUserByRollNo,
     getUserByEmail,
+    getMyProfile,
+    changePassword,
     updateUser,
     deleteUser
 } from '../controllers/user.controller.js';
-import { verifyToken } from '../middlewares/auth.middleware.js';
+import { verifyToken, requireRole } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-// Create a new user
-router.post('/create', createUser);
+// Admin creates users
+router.post('/create', verifyToken, requireRole('admin'), createUser);
 
 // User login
 router.post('/login', loginUser);
 
-// Get all users (protected route)
-router.get('/all', verifyToken, getAllUsers);
+// Get all users (admin only)
+router.get('/all', verifyToken, requireRole('admin'), getAllUsers);
 
-// Get user by roll number (protected route)
+// Get logged-in user profile
+router.get('/me', verifyToken, getMyProfile);
+
+// Change own password
+router.put('/change-password', verifyToken, changePassword);
+
+// Get user by roll number
 router.get('/roll/:roll_no', verifyToken, getUserByRollNo);
 
-// Get user by email (protected route)
+// Get user by email
 router.get('/email/:email', verifyToken, getUserByEmail);
 
-// Update user by roll number (protected route)
+// Update user by roll number
 router.put('/update/:roll_no', verifyToken, updateUser);
 
-// Delete user by roll number (protected route)
-router.delete('/delete/:roll_no', verifyToken, deleteUser);
+// Delete user by roll number (admin only)
+router.delete('/delete/:roll_no', verifyToken, requireRole('admin'), deleteUser);
 
 export default router;
