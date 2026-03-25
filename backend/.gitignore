@@ -79,6 +79,9 @@ web_modules/
 .env.test
 .env.production
 
+# local api docs files
+API_DOCS.txt
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

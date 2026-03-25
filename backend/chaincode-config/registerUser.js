@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function main() {
+const main = async ()=> {
     try {
         const ccpPath = path.resolve(__dirname, 'connection-org1.json');
         const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
@@ -64,4 +64,4 @@ async function main() {
     }
 }
 
-main();
+export default main;
