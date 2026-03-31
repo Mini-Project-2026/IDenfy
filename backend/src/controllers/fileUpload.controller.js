@@ -99,8 +99,10 @@ export const getImage = async (req, res) => {
     // Get images for authenticated user. Admins can fetch all or specific image by id.
     let query = {};
 
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'user') {
         query.user = userId;
+    } else if (req.user.role === 'subadmin') {
+        query.issuer = userId;
     }
 
     // If specific ID provided, fetch that specific image
@@ -132,14 +134,14 @@ export const uploadImageForUser = async (req, res) => {
   try {
     const file = req.file;
     const { roll_no } = req.params;
-    const adminId = req.user?.userId;
-    const adminRole = req.user?.role;
+    const issuerId = req.user?.userId;
+    const issuerRole = req.user?.role;
 
-    // Check if admin
-    if (adminRole !== 'admin') {
+    // Only admin or subadmin can upload files for users
+    if (!['admin', 'subadmin'].includes(issuerRole)) {
         return res.status(403).json({
             success: false,
-            message: "Only admins can upload files for other users."
+            message: "Only admins or subadmins can upload files for users."
         });
     }
 
@@ -177,7 +179,8 @@ export const uploadImageForUser = async (req, res) => {
     const saved = await Image.create({
         cid,
         url,
-        user: targetUser._id
+        user: targetUser._id,
+        issuer: issuerId
     });
 
     // Automatically save certificate on blockchain with user's roll_no, cid, url, and timestamp

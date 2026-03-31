@@ -14,9 +14,10 @@ const generateToken = (userId, roll_no, email, role) => {
 // Admin-created user
 export const createUser = async (req, res) => {
     try {
-        const { roll_no, name, email, password, fabric_identity, dob, role } = req.body;
+        const { roll_no, name, email, password, fabric_identity, dob, role, department } = req.body;
+        const normalizedRole = role ? role.toLowerCase() : 'user';
 
-        // Only admin can create users
+        // Only admin can create users/subadmins
         if (!req.user || req.user.role !== 'admin') {
             return res.status(403).json({ error: 'Forbidden. Admin access required.' });
         }
@@ -28,6 +29,18 @@ export const createUser = async (req, res) => {
 
         if (password.length < 6) {
             return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+        }
+
+        if (normalizedRole === 'admin') {
+            return res.status(400).json({ error: 'Creating a new admin is not allowed.' });
+        }
+
+        if (!['subadmin', 'user'].includes(normalizedRole)) {
+            return res.status(400).json({ error: 'Role must be subadmin or user' });
+        }
+
+        if (normalizedRole === 'user' && !department) {
+            return res.status(400).json({ error: 'Department is required for user role' });
         }
 
         const existingUser = await User.findOne({ $or: [{ roll_no }, { email }] });
@@ -42,7 +55,8 @@ export const createUser = async (req, res) => {
             password,
             fabric_identity,
             dob,
-            role: role || 'user'
+            department: department || null,
+            role: normalizedRole
         });
 
         await user.save();
@@ -99,11 +113,11 @@ export const loginUser = async (req, res) => {
     }
 };
 
-// Get all users (admin only)
+// Get all users (admin and subadmin)
 export const getAllUsers = async (req, res) => {
     try {
-        if (!req.user || req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Forbidden. Admin access required.' });
+        if (!req.user || !['admin', 'subadmin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Forbidden. Admin or subadmin access required.' });
         }
 
         const users = await User.find().select('-password');
@@ -211,7 +225,7 @@ export const getUserByEmail = async (req, res) => {
 export const updateUser = async (req, res) => {
     try {
         const { roll_no } = req.params;
-        const { name, email, fabric_identity, dob, password } = req.body;
+        const { name, email, fabric_identity, dob, department} = req.body;
 
         if (req.user.role !== 'admin' && req.user.roll_no !== roll_no) {
             return res.status(403).json({ error: 'Forbidden. Access denied.' });
@@ -222,17 +236,15 @@ export const updateUser = async (req, res) => {
             return res.status(400).json({ error: 'Email cannot be changed' });
         }
 
+
         if (!name) {
             return res.status(400).json({ error: 'Name is required' });
         }
 
         const updateData = { name, fabric_identity, dob };
 
-        if (password) {
-            if (password.length < 6) {
-                return res.status(400).json({ error: 'Password must be at least 6 characters long' });
-            }
-            updateData.password = password;
+        if (department !== undefined) {
+            updateData.department = department;
         }
 
         const user = await User.findOneAndUpdate(

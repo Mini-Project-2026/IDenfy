@@ -27,9 +27,16 @@ const userSchema = new mongoose.Schema({
     dob: {
         type: Date
     },
+    department: {
+        type: String,
+        required: function() {
+            return this.role === 'user';
+        },
+        default: null
+    },
     role: {
         type: String,
-        enum: ['admin', 'user'],
+        enum: ['admin','subadmin','user'],
         default: 'user'
     }
 }, { timestamps: true, collection: 'users' });
