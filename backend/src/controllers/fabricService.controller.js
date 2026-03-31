@@ -1,6 +1,7 @@
 import path from 'path';
 import { dirname } from 'path';
 import { Image } from '../models/file.models.js';
+import { User } from '../models/user.models.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -63,20 +64,25 @@ async function verifyCertificateFromBlockchain(studentId) {
 */
 
 // PLACEHOLDER IMPLEMENTATION (for development without Fabric)
-async function storeCertificateOnBlockchain(studentId, ipfsCid) {
-    console.log(`[PLACEHOLDER] Storing certificate on blockchain for ${studentId}: ${ipfsCid}`);
+async function storeCertificateOnBlockchain(studentIdOrRollNo, ipfsCid, url, timestamp) {
+    console.log(`[PLACEHOLDER] Storing certificate on blockchain for ${studentIdOrRollNo}`);
+    console.log(`[PLACEHOLDER] CID: ${ipfsCid}, URL: ${url}, Timestamp: ${timestamp}`);
     return { success: true };
 }
 
-async function verifyCertificateFromBlockchain(studentId) {
-    console.log(`[PLACEHOLDER] Verifying certificate from blockchain for ${studentId}`);
+async function verifyCertificateFromBlockchain(studentIdOrRollNo) {
+    console.log(`[PLACEHOLDER] Verifying certificate from blockchain for ${studentIdOrRollNo}`);
+    // This will be populated by the controller with actual data from DB
     return {
-        studentId,
+        studentIdOrRollNo,
         ipfsCid: 'QmXoyp...example',
+        url: 'http://127.0.0.1:8080/ipfs/QmXoyp...example',
         timestamp: new Date().toISOString(),
         status: 'verified'
     };
 }
+
+export { storeCertificateOnBlockchain, verifyCertificateFromBlockchain };
 
 // ============= CONTROLLERS =============
 
@@ -94,6 +100,12 @@ export const issueCertificate = async (req, res) => {
             return res.status(400).json({ error: 'File data is required' });
         }
 
+        // Get user details
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
         // Get IPFS CID from database (file already uploaded)
         const image = await Image.findOne({ user: userId }).sort({ createdAt: -1 });
         if (!image) {
@@ -101,14 +113,19 @@ export const issueCertificate = async (req, res) => {
         }
 
         const cid = image.cid;
+        const url = image.url;
+        const timestamp = image.createdAt.toISOString();
 
-        // Store on blockchain
-        await storeCertificateOnBlockchain(userId, cid);
+        // Store on blockchain with roll_no, cid, url, and timestamp
+        await storeCertificateOnBlockchain(user.roll_no, cid, url, timestamp);
 
         res.status(200).json({
             message: 'Certificate issued and saved on blockchain',
+            rollNo: user.roll_no,
             cid,
-            studentId: userId,
+            url,
+            ipfsLink: `https://ipfs.io/ipfs/${cid}`,
+            issuedAt: timestamp,
             status: 'verified'
         });
     } catch (error) {
@@ -126,36 +143,68 @@ export const verifyCertificate = async (req, res) => {
             return res.status(400).json({ error: 'Certificate ID is required' });
         }
 
-        // Try to verify with provided ID
-        let certData = await verifyCertificateFromBlockchain(id);
+        let certificateData = null;
+        let user = null;
 
-        // If not found and looks like CID, try to find studentId from database
-        if (!certData && id.startsWith('Qm')) {
-            const image = await Image.findOne({ cid: id }).lean();
+        // Case 1: ID looks like IPFS CID (starts with Qm)
+        if (id.startsWith('Qm')) {
+            const image = await Image.findOne({ cid: id }).populate('user');
             if (image) {
-                certData = await verifyCertificateFromBlockchain(image.user.toString());
+                user = image.user;
+                certificateData = {
+                    cid: image.cid,
+                    url: image.url,
+                    issuedAt: image.createdAt.toISOString()
+                };
             }
         }
 
-        // If not found and looks like MongoDB ObjectId, try direct query
-        if (!certData && /^[0-9a-fA-F]{24}$/.test(id)) {
-            const image = await Image.findOne({ user: id }).lean();
-            if (image) {
-                certData = await verifyCertificateFromBlockchain(id);
+        // Case 2: ID looks like roll number (try to find user by roll_no, then get their latest certificate)
+        if (!certificateData && !id.match(/^[0-9a-fA-F]{24}$/)) {
+            user = await User.findOne({ roll_no: id });
+            if (user) {
+                const image = await Image.findOne({ user: user._id }).sort({ createdAt: -1 });
+                if (image) {
+                    certificateData = {
+                        cid: image.cid,
+                        url: image.url,
+                        issuedAt: image.createdAt.toISOString()
+                    };
+                }
             }
         }
 
-        if (!certData) {
+        // Case 3: ID looks like MongoDB ObjectId (user ID)
+        if (!certificateData && /^[0-9a-fA-F]{24}$/.test(id)) {
+            user = await User.findById(id);
+            if (user) {
+                const image = await Image.findOne({ user: id }).sort({ createdAt: -1 });
+                if (image) {
+                    certificateData = {
+                        cid: image.cid,
+                        url: image.url,
+                        issuedAt: image.createdAt.toISOString()
+                    };
+                }
+            }
+        }
+
+        if (!certificateData || !user) {
             return res.status(404).json({ message: 'Certificate not found on blockchain' });
         }
 
-        res.status(200).json({
+        // Prepare response with all details
+        const response = {
             message: 'Certificate successfully verified',
-            studentId: certData.studentId,
-            ipfsCid: certData.ipfsCid,
-            issuedAt: certData.timestamp,
-            status: certData.status
-        });
+            rollNo: user.roll_no,
+            cid: certificateData.cid,
+            url: certificateData.url,
+            ipfsLink: `https://ipfs.io/ipfs/${certificateData.cid}`,
+            issuedAt: certificateData.issuedAt,
+            status: 'verified'
+        };
+
+        res.status(200).json(response);
     } catch (error) {
         console.error('Verify certificate error:', error);
         res.status(500).json({ error: error.message });
