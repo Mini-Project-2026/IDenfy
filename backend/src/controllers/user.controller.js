@@ -14,7 +14,7 @@ const generateToken = (userId, roll_no, email, role) => {
 // Admin-created user
 export const createUser = async (req, res) => {
     try {
-        const { roll_no, name, email, password, fabric_identity, dob, role, department } = req.body;
+        const { roll_no, name, email, password, dob, role, department } = req.body;
         const normalizedRole = role ? role.toLowerCase() : 'user';
 
         // Only admin can create users/subadmins
@@ -23,8 +23,12 @@ export const createUser = async (req, res) => {
         }
 
         // Validate required fields
-        if (!roll_no || !name || !email || !password) {
-            return res.status(400).json({ error: 'Roll No, Name, Email, and Password are required' });
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'Name, Email, and Password are required' });
+        }
+
+        if (normalizedRole === 'user' && !roll_no) {
+            return res.status(400).json({ error: 'Roll No is required for user role' });
         }
 
         if (password.length < 6) {
@@ -39,23 +43,32 @@ export const createUser = async (req, res) => {
             return res.status(400).json({ error: 'Role must be subadmin or user' });
         }
 
-        if (normalizedRole === 'user' && !department) {
-            return res.status(400).json({ error: 'Department is required for user role' });
+        if (normalizedRole === 'user') {
+            if (!department) {
+                return res.status(400).json({ error: 'Department is required for user role' });
+            }
+            if (!dob) {
+                return res.status(400).json({ error: 'Date of birth is required for user role' });
+            }
+        } else {
+            if (dob) {
+                return res.status(400).json({ error: 'Date of birth is only allowed for user role' });
+            }
         }
 
-        const existingUser = await User.findOne({ $or: [{ roll_no }, { email }] });
+        const existingUser = await User.findOne({ $or: [{ roll_no: roll_no || null }, { email }] });
         if (existingUser) {
             return res.status(409).json({ error: 'User with this Roll No or Email already exists' });
         }
 
         const user = new User({
-            roll_no,
+            roll_no: normalizedRole === 'user' ? roll_no : null,
             name,
             email,
             password,
-            fabric_identity,
-            dob,
-            department: department || null,
+            fabric_identity: normalizedRole === 'user' ? roll_no : null,
+            dob: normalizedRole === 'user' ? dob : null,
+            department: normalizedRole === 'user' ? department : null,
             role: normalizedRole
         });
 
@@ -225,25 +238,39 @@ export const getUserByEmail = async (req, res) => {
 export const updateUser = async (req, res) => {
     try {
         const { roll_no } = req.params;
-        const { name, email, fabric_identity, dob, department} = req.body;
+        const { name, dob, department} = req.body;
 
         if (req.user.role !== 'admin' && req.user.roll_no !== roll_no) {
             return res.status(403).json({ error: 'Forbidden. Access denied.' });
         }
 
-        // Email should never be changed after admin assignment
-        if (email) {
-            return res.status(400).json({ error: 'Email cannot be changed' });
+        const targetUser = await User.findOne({ roll_no });
+        if (!targetUser) {
+            return res.status(404).json({ error: 'User not found' });
         }
 
+        // Email should never be changed after admin assignment
+        if (req.body.email) {
+            return res.status(400).json({ error: 'Email cannot be changed' });
+        }
 
         if (!name) {
             return res.status(400).json({ error: 'Name is required' });
         }
 
-        const updateData = { name, fabric_identity, dob };
+        if (dob && targetUser.role !== 'user') {
+            return res.status(400).json({ error: 'Date of birth is only allowed for user role' });
+        }
+
+        const updateData = { name };
+        if (dob !== undefined) {
+            updateData.dob = dob;
+        }
 
         if (department !== undefined) {
+            if (targetUser.role !== 'user') {
+                return res.status(400).json({ error: 'Department is only allowed for user role' });
+            }
             updateData.department = department;
         }
 
