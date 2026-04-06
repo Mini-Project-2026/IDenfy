@@ -40,13 +40,8 @@ const IssueCertificatePage = () => {
     }
   }, []);
 
-  const certCat = user?.certCategory || user?.subRole;
-  const defaultCategory = certCat === "activity" ? "Activity" : "Academic";
-  const isCategoryLocked = user?.role === "sub_admin" && certCat !== "both";
-
   const [selectedStudentId, setSelectedStudentId] = useState("");
-  const [category, setCategory] = useState(defaultCategory);
-  const [courseName, setCourseName] = useState("");
+  const [certificateName, setCertificateName] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isMinting, setIsMinting] = useState(false);
@@ -55,11 +50,11 @@ const IssueCertificatePage = () => {
   const fileInputRef = useRef(null);
   const { toast } = useToast();
 
-  const filteredStudents = mockStudents.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.rollNo.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = mockStudents.filter((s) =>
+    s.rollNo.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+
 
   // Drag & drop handlers
   const handleDragOver = useCallback((e) => {
@@ -89,7 +84,7 @@ const IssueCertificatePage = () => {
   };
 
   const handleMint = async () => {
-    if (!selectedStudentId || !uploadedFile || !courseName.trim()) return;
+    if (!selectedStudentId || !uploadedFile || !certificateName.trim()) return;
 
     setIsMinting(true);
     setMintProgress(0);
@@ -121,19 +116,15 @@ const IssueCertificatePage = () => {
 
     // Reset form
     setSelectedStudentId("");
-    setCourseName("");
+    setCertificateName("");
     setUploadedFile(null);
-    if (!isCategoryLocked) {
-      setCategory("Academic");
-    }
   };
 
   const selectedStudent = mockStudents.find(
     (s) => s.id === selectedStudentId
   );
 
-  const isFormValid =
-    selectedStudentId && uploadedFile && courseName.trim();
+  const isFormValid = selectedStudentId && uploadedFile && certificateName.trim();
 
   return (
     <div className="p-8 relative">
@@ -203,9 +194,9 @@ const IssueCertificatePage = () => {
           {/* Student Selection */}
           <Card className="shadow-sm border-slate-200 dark:border-slate-800">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Select Student</CardTitle>
+              <CardTitle className="text-base">Search by Roll Number</CardTitle>
               <CardDescription>
-                Choose a registered student to issue the certificate to.
+                Search for the student by their roll number to verify username.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -214,7 +205,9 @@ const IssueCertificatePage = () => {
                 onValueChange={setSelectedStudentId}
               >
                 <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Select a student..." />
+                  <SelectValue placeholder="Search student...">
+                    {selectedStudent ? selectedStudent.name : "Search student..."}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <div className="px-2 pb-2">
@@ -222,20 +215,21 @@ const IssueCertificatePage = () => {
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                       <input
                         className="w-full pl-7 pr-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-md bg-transparent outline-none focus:ring-1 focus:ring-indigo-500"
-                        placeholder="Search students..."
+                        placeholder="Type roll number..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                       />
                     </div>
                   </div>
                   {filteredStudents.map((student) => (
                     <SelectItem key={student.id} value={student.id}>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{student.name}</span>
-                        <span className="text-xs text-slate-400 font-mono">
+                        <span className="text-xs text-slate-600 dark:text-slate-300 font-mono border border-slate-200 dark:border-slate-700 px-1 rounded bg-slate-100 dark:bg-slate-800">
                           {student.rollNo}
                         </span>
+                        <span className="font-medium text-slate-900 dark:text-white">{student.name}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -249,71 +243,21 @@ const IssueCertificatePage = () => {
             </CardContent>
           </Card>
 
-          {/* Certificate Details */}
+          {/* Certificate Name */}
           <Card className="shadow-sm border-slate-200 dark:border-slate-800">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                Certificate Details
-              </CardTitle>
+              <CardTitle className="text-base">Certificate Name</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="space-y-2">
-                <Label htmlFor="courseName">Course / Certificate Name</Label>
+                <Label htmlFor="certificateName" className="sr-only">Name</Label>
                 <Input
-                  id="courseName"
+                  id="certificateName"
                   placeholder="e.g., Advanced Machine Learning"
-                  value={courseName}
-                  onChange={(e) => setCourseName(e.target.value)}
+                  value={certificateName}
+                  onChange={(e) => setCertificateName(e.target.value)}
                   className="h-11"
                 />
-              </div>
-
-              {/* Category Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                <div>
-                  <p className="font-medium text-sm text-slate-900 dark:text-white">
-                    Category
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {category === "Academic"
-                      ? "Academic degree or course certificate"
-                      : "Extracurricular activity or competition"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`text-sm font-medium transition-colors ${
-                      category === "Academic"
-                        ? "text-indigo-600 dark:text-indigo-400"
-                        : "text-slate-400"
-                    }`}
-                  >
-                    Academic
-                  </span>
-                  
-                  {!isCategoryLocked ? (
-                    <Switch
-                      checked={category === "Activity"}
-                      onCheckedChange={(checked) =>
-                        setCategory(checked ? "Activity" : "Academic")
-                      }
-                    />
-                  ) : (
-                    <div className="px-1" title="Category locked by your role">
-                      <Lock className="w-3.5 h-3.5 text-slate-400" />
-                    </div>
-                  )}
-
-                  <span
-                    className={`text-sm font-medium transition-colors ${
-                      category === "Activity"
-                        ? "text-indigo-600 dark:text-indigo-400"
-                        : "text-slate-400"
-                    }`}
-                  >
-                    Activity
-                  </span>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -416,32 +360,20 @@ const IssueCertificatePage = () => {
                     )}
                   </p>
                 </div>
+
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">
-                    Course
+                    Certificate Name
                   </p>
                   <p className="text-sm font-medium text-slate-900 dark:text-white">
-                    {courseName || (
+                    {certificateName || (
                       <span className="text-slate-300 dark:text-slate-600 italic">
                         Not entered
                       </span>
                     )}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">
-                    Category
-                  </p>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      category === "Academic"
-                        ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
-                        : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                    }`}
-                  >
-                    {category}
-                  </span>
-                </div>
+
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">
                     Document

@@ -11,8 +11,7 @@ import {
   UserCog,
 } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
 import { mockStudents, mockCertificates } from "../mockData";
 import ManageStudentsPage from "./admin/ManageStudentsPage";
@@ -75,15 +74,6 @@ const AdminPage = () => {
   const totalStudents = mockStudents.length;
   const totalCerts = mockCertificates.length;
   
-  // Data for Pie Chart
-  const academicCerts = mockCertificates.filter(c => c.category === "Academic").length;
-  const activityCerts = mockCertificates.filter(c => c.category === "Activity").length;
-  const pieData = [
-    { name: 'Academic', value: academicCerts },
-    { name: 'Activity', value: activityCerts }
-  ];
-  const PIE_COLORS = ['#4f46e5', '#f59e0b']; // indigo-600, amber-500
-
   // Data for Line Chart (Certs by Month)
   const certsByMonth = mockCertificates.reduce((acc, cert) => {
     const month = cert.issueDate.substring(0, 7); // yyyy-mm format
@@ -208,11 +198,11 @@ const AdminPage = () => {
                 </div>
 
                 {/* Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                <div className="mt-6">
                   {/* Line Chart */}
-                  <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
+                  <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
                     <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Certificates Issued Over Time</h2>
-                    <div className="flex-1 w-full min-h-[300px]">
+                    <div className="w-full h-[320px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={lineData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -242,35 +232,6 @@ const AdminPage = () => {
                             activeDot={{ r: 6, stroke: '#4f46e5', strokeWidth: 2, fill: '#fff' }} 
                           />
                         </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* Pie Chart */}
-                  <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Certificates by Category</h2>
-                    <div className="flex-1 w-full min-h-[300px] flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={pieData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={65}
-                            outerRadius={100}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                          >
-                            {pieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip 
-                            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-                          />
-                          <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                        </PieChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
