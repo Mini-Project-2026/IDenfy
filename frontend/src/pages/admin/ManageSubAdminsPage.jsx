@@ -61,8 +61,6 @@ const ManageSubAdminsPage = () => {
     name: "",
     email: "",
     password: "",
-    subRole: "",
-    certCategory: "",
   };
   const [formData, setFormData] = useState({ ...emptyForm });
 
@@ -75,13 +73,11 @@ const ManageSubAdminsPage = () => {
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.name.trim()) errors.name = "Name is required.";
+    if (!formData.name.trim()) errors.name = "Authority Name is required.";
     if (!formData.email.trim()) errors.email = "Email is required.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       errors.email = "Invalid email format.";
     if (!formData.password.trim()) errors.password = "Password is required.";
-    if (!formData.subRole.trim()) errors.subRole = "Department is required.";
-    if (!formData.certCategory) errors.certCategory = "Category is required.";
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -110,8 +106,6 @@ const ManageSubAdminsPage = () => {
       name: admin.name,
       email: admin.email,
       password: admin.password,
-      subRole: admin.subRole,
-      certCategory: admin.certCategory || (admin.subRole === "activity" ? "activity" : "academic"),
     });
     setFormErrors({});
     setIsEditOpen(true);
@@ -151,13 +145,13 @@ const ManageSubAdminsPage = () => {
     (a) =>
       a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.subRole.toLowerCase().includes(searchQuery.toLowerCase())
+      (a.subRole && a.subRole.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const formFieldsJSX = (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Full Name</Label>
+        <Label htmlFor="name">Authority Name</Label>
         <Input
           id="name"
           placeholder="e.g., Dr. Smith"
@@ -191,61 +185,20 @@ const ManageSubAdminsPage = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="text"
-            placeholder="e.g., secret123"
-            value={formData.password}
-            onChange={(e) => handleFormChange("password", e.target.value)}
-            className={formErrors.password ? "border-red-400" : ""}
-          />
-          {formErrors.password && (
-            <p className="text-xs text-red-500 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {formErrors.password}
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="subRole">Department Name</Label>
-          <Input
-            id="subRole"
-            placeholder="e.g., Fee, Sports, Library"
-            value={formData.subRole}
-            onChange={(e) => handleFormChange("subRole", e.target.value)}
-            className={formErrors.subRole ? "border-red-400" : ""}
-          />
-          {formErrors.subRole && (
-            <p className="text-xs text-red-500 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {formErrors.subRole}
-            </p>
-          )}
-        </div>
-      </div>
       <div className="space-y-2">
-        <Label htmlFor="certCategory">Certificate Category</Label>
-        <p className="text-xs text-slate-400 -mt-1">Which type of certificates can this admin issue?</p>
-        <Select
-          value={formData.certCategory}
-          onValueChange={(value) => handleFormChange("certCategory", value)}
-        >
-          <SelectTrigger className={formErrors.certCategory ? "border-red-400" : ""}>
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="academic">Academic Certificates</SelectItem>
-            <SelectItem value="activity">Activity Certificates</SelectItem>
-            <SelectItem value="both">Both (Academic & Activity)</SelectItem>
-          </SelectContent>
-        </Select>
-        {formErrors.certCategory && (
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="text"
+          placeholder="e.g., secret123"
+          value={formData.password}
+          onChange={(e) => handleFormChange("password", e.target.value)}
+          className={formErrors.password ? "border-red-400" : ""}
+        />
+        {formErrors.password && (
           <p className="text-xs text-red-500 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
-            {formErrors.certCategory}
+            {formErrors.password}
           </p>
         )}
       </div>
@@ -324,9 +277,8 @@ const ManageSubAdminsPage = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                <TableHead className="font-semibold">Name</TableHead>
+                <TableHead className="font-semibold">Authority Name</TableHead>
                 <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Department Role</TableHead>
                 <TableHead className="font-semibold text-right">
                   Actions
                 </TableHead>
@@ -344,22 +296,6 @@ const ManageSubAdminsPage = () => {
                     </TableCell>
                     <TableCell className="text-slate-600 dark:text-slate-400">
                       {admin.email}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 capitalize">
-                          {admin.subRole}
-                        </span>
-                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          (admin.certCategory || admin.subRole) === "academic"
-                            ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
-                            : (admin.certCategory || admin.subRole) === "activity"
-                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                        }`}>
-                          {(admin.certCategory || admin.subRole) === "both" ? "All Certs" : (admin.certCategory || admin.subRole) === "academic" ? "Academic" : "Activity"}
-                        </span>
-                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -386,7 +322,7 @@ const ManageSubAdminsPage = () => {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={3}
                     className="text-center py-12 text-slate-400"
                   >
                     {searchQuery

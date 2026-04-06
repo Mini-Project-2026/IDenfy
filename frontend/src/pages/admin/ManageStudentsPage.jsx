@@ -72,6 +72,7 @@ const ManageStudentsPage = () => {
     password: "",
     rollNo: "",
     department: "",
+    dob: "",
   };
   const [formData, setFormData] = useState({ ...emptyForm });
 
@@ -94,6 +95,9 @@ const ManageStudentsPage = () => {
     if (!formData.rollNo.trim()) errors.rollNo = "Roll number is required.";
     if (!formData.department.trim())
       errors.department = "Department is required.";
+    if (!formData.dob) {
+      errors.dob = "Date of Birth is required.";
+    }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -123,6 +127,7 @@ const ManageStudentsPage = () => {
       password: student.password || "",
       rollNo: student.rollNo,
       department: student.department,
+      dob: student.dob || "",
     });
     setFormErrors({});
     setIsEditOpen(true);
@@ -253,6 +258,22 @@ const ManageStudentsPage = () => {
             </p>
           )}
         </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="dob">Date of Birth</Label>
+        <Input
+          id="dob"
+          type="date"
+          value={formData.dob}
+          onChange={(e) => handleFormChange("dob", e.target.value)}
+          className={formErrors.dob ? "border-red-400" : ""}
+        />
+        {formErrors.dob && (
+          <p className="text-xs text-red-500 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" />
+            {formErrors.dob}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -535,6 +556,10 @@ const ManageStudentsPage = () => {
                   <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     <span>Enrolled: {viewStudent.enrolledDate || "N/A"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>DOB: {viewStudent.dob || "N/A"}</span>
                   </div>
                 </div>
               </div>
