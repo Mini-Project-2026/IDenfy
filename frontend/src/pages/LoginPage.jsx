@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { authenticateUser } from "../mockData";
+import { loginUser } from "../services/api";
 import {
   Card,
   CardContent,
@@ -55,22 +55,22 @@ const LoginPage = () => {
 
     setIsLoading(true);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const user = authenticateUser(email, password);
-
-    if (user) {
-      // Store user info (simulated session)
+    try {
+      const { data } = await loginUser({ email, password });
+      
+      const { user, token } = data;
       localStorage.setItem("idenfy_user", JSON.stringify(user));
+      localStorage.setItem("idenfy_jwt", token);
 
-      if (user.role === "super_admin" || user.role === "sub_admin") {
+      if (user.role === "super_admin" || user.role === "admin" || user.role === "subadmin" || user.role === "sub_admin") {
         navigate("/admin/dashboard");
       } else {
         navigate("/student/dashboard");
       }
-    } else {
-      setLoginError("Invalid email or password. Please try again.");
+    } catch (error) {
+      setLoginError(
+        error.response?.data?.message || "Invalid email or password. Please try again."
+      );
     }
 
     setIsLoading(false);
