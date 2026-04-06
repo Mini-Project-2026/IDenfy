@@ -4,14 +4,6 @@ import { User } from '../models/user.models.js';
 import { storeCertificateOnBlockchain } from './fabricService.controller.js';
 
 
-export const defaultControl =  (req, res)=>{
-    res.json({
-        success:true,
-        message: "File upload API is running."
-    })
-};
-
-
 // export const uploadImage =  async (req, res) => {
 //   try {
 //     const file = req.file;
@@ -84,10 +76,10 @@ export const defaultControl =  (req, res)=>{
 //   }
 // };
 
-export const getImage = async (req, res) => {
+export const getFiles = async (req, res) => {
   try {
     const userId = req.user?.userId; // Get authenticated user's ID from JWT
-    const { id } = req.query; // Optional: get specific image by ID
+    const { id } = req.query; // Optional: get specific file by ID
 
     if(!userId){
         return res.status(401).json({
@@ -96,7 +88,7 @@ export const getImage = async (req, res) => {
         });
     }
 
-    // Get images for authenticated user. Admins can fetch all or specific image by id.
+    // Get files for authenticated user. Admins can fetch all or specific file by id.
     let query = {};
 
     if (req.user.role === 'user') {
@@ -105,26 +97,84 @@ export const getImage = async (req, res) => {
         query.issuer = userId;
     }
 
-    // If specific ID provided, fetch that specific image
+    // If specific ID provided, fetch that specific file
     if (id) {
         query._id = id;
     }
 
-    const images = await Image.find(query)
+    const files = await Image.find(query)
         .populate('user', '-password') // Populate user info without password
         .sort({ createdAt: -1 });
 
     res.status(200).json({
         success: true,
-        count: images.length,
-        images: images
+        count: files.length,
+        files: files
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({
         success: false,
-        message: 'Failed to retrieve images',
+        message: 'Failed to retrieve files',
         error: err.message
+    });
+  }
+};
+
+export const getCertificateCountsByDate = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated. Please login first.'
+      });
+    }
+
+    if (!['admin', 'subadmin'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden. Only admin and subadmin can retrieve certificate counts.'
+      });
+    }
+
+    const match = {};
+    if (userRole === 'subadmin') {
+      match.issuer = userId;
+    }
+
+    const counts = await Image.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          date: '$_id',
+          count: 1
+        }
+      },
+      { $sort: { date: -1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      counts
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve certificate counts',
+      error: err.message
     });
   }
 };
@@ -134,6 +184,7 @@ export const uploadImageForUser = async (req, res) => {
   try {
     const file = req.file;
     const { roll_no } = req.params;
+    const { certificateName } = req.body;
     const issuerId = req.user?.userId;
     const issuerRole = req.user?.role;
 
@@ -148,7 +199,14 @@ export const uploadImageForUser = async (req, res) => {
     if (!file) {
         return res.status(400).json({
             success: false,
-            message: "Image is required."
+            message: "File is required."
+        });
+    }
+
+    if (!certificateName) {
+        return res.status(400).json({
+            success: false,
+            message: "Certificate name is required."
         });
     }
 
@@ -179,6 +237,7 @@ export const uploadImageForUser = async (req, res) => {
     const saved = await Image.create({
         cid,
         url,
+        certificateName,
         user: targetUser._id,
         issuer: issuerId
     });
@@ -194,13 +253,14 @@ export const uploadImageForUser = async (req, res) => {
 
     res.status(201).json({
         success: true,
-        message: "Image uploaded successfully for user and certificate saved on blockchain",
+        message: "File uploaded successfully for user and certificate saved on blockchain",
         rollNo: targetUser.roll_no,
+        certificateName,
         cid: cid,
         url: url,
         ipfsLink: `https://ipfs.io/ipfs/${cid}`,
         issuedAt: saved.createdAt.toISOString(),
-        imageId: saved._id,
+        fileId: saved._id,
         uploadedForUser: {
             userId: targetUser._id,
             name: targetUser.name,

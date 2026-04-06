@@ -1,21 +1,18 @@
 import { Router } from "express";
-import { defaultControl, getImage, uploadImageForUser } from '../controllers/fileUpload.controller.js';
+import { getFiles, uploadImageForUser, getCertificateCountsByDate } from '../controllers/fileUpload.controller.js';
 import upload from "../middlewares/upload.middleware.js";
 import { verifyToken } from "../middlewares/auth.middleware.js";
 
 const fileRouter = Router();
 
-// Health check route to verify API status
-fileRouter.route("/health").get(defaultControl);
+// Route to retrieve files (requires authentication; admins can see all, users see their own)
+fileRouter.route("/get-files").get(verifyToken, getFiles);
 
-// Route to upload an image (requires authentication)
-// fileRouter.route("/upload-image").post(verifyToken, upload.single("image"), uploadImage);
+// Route to retrieve certificate counts grouped by created date
+fileRouter.route("/certificate-counts").get(verifyToken, getCertificateCountsByDate);
 
-// Route to retrieve images (requires authentication; admins can see all, users see their own)
-fileRouter.route("/get-images").get(verifyToken, getImage);
-
-// Route for admin to upload image for a specific user by roll_no
-fileRouter.route("/upload-for-user/:roll_no").post(verifyToken, upload.single("image"), uploadImageForUser);
+// Route for admin to upload a file for a specific user by roll_no
+fileRouter.route("/upload-for-user/:roll_no").post(verifyToken, upload.single("file"), uploadImageForUser);
 
 export default fileRouter;
 
