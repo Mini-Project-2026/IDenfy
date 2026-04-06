@@ -4,8 +4,11 @@ import bcrypt from 'bcrypt';
 const userSchema = new mongoose.Schema({
     roll_no: {
         type: String,
-        required: true,
-        unique: true
+        required: function() {
+            return this.role === 'user';
+        },
+        unique: true,
+        default: null
     },
     name: {
         type: String,
@@ -22,10 +25,18 @@ const userSchema = new mongoose.Schema({
         minlength: 6
     },
     fabric_identity: {
-        type: String
+        type: String,
+        required: function() {
+            return this.role === 'user';
+        },
+        default: null
     },
     dob: {
-        type: Date
+        type: Date,
+        required: function() {
+            return this.role === 'user';
+        },
+        default: null
     },
     department: {
         type: String,

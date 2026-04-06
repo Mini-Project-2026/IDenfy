@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-const imageSchema = new mongoose.Schema({
+const fileSchema = new mongoose.Schema({
     cid: {
         type:String,
         required:true
@@ -8,6 +8,10 @@ const imageSchema = new mongoose.Schema({
     url: {
         type:String,
         required:true
+    },
+    certificateName: {
+        type: String,
+        required: true
     },
     user:{
         type: mongoose.Schema.Types.ObjectId,
@@ -21,4 +25,4 @@ const imageSchema = new mongoose.Schema({
     }
 }, {timestamps:true, collection: 'files'});
 
-export const Image = mongoose.model("Image", imageSchema);
+export const Image = mongoose.model("Image", fileSchema);
