@@ -17,9 +17,9 @@ export const createUser = async (req, res) => {
         const { roll_no, name, email, password, dob, role, department } = req.body;
         const normalizedRole = role ? role.toLowerCase() : 'user';
 
-        // Only admin/subadmin can create users/subadmins
-        if (!req.user || !['admin', 'subadmin'].includes(req.user.role)) {
-            return res.status(403).json({ error: 'Forbidden. Admin or Subadmin access required.' });
+        // Only admin can create users/subadmins
+        if (!req.user || req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden. Admin access required.' });
         }
 
         // Validate required fields
@@ -56,16 +56,7 @@ export const createUser = async (req, res) => {
             }
         }
 
-        // Build query to check for duplicate - only check roll_no if it's provided
-        let query;
-        if (normalizedRole === 'user' && roll_no) {
-            query = { $or: [{ roll_no }, { email }] };
-        } else {
-            // For subadmin/admin, only check email to avoid null matching issues
-            query = { email };
-        }
-        
-        const existingUser = await User.findOne(query);
+        const existingUser = await User.findOne({ $or: [{ roll_no: roll_no || null }, { email }] });
         if (existingUser) {
             return res.status(409).json({ error: 'User with this Roll No or Email already exists' });
         }
@@ -102,19 +93,26 @@ export const loginUser = async (req, res) => {
     try {
         const { roll_no, email, password } = req.body;
 
+        console.log('Login attempt:', { roll_no, email, password: '***' });
+
         if (!password || (!roll_no && !email)) {
             return res.status(400).json({ error: 'Email/Roll No and Password are required' });
         }
 
-        const user = await User.findOne({
-            $or: [{ roll_no }, { email }]
-        });
+        let query = {};
+        if (roll_no !== undefined) query.roll_no = roll_no;
+        if (email !== undefined) query.email = email;
+
+        const user = await User.findOne(query);
+
+        console.log('Query result:', user ? { _id: user._id, email: user.email, role: user.role } : null);
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const isPasswordMatch = await user.comparePassword(password);
+        console.log('Password match:', isPasswordMatch);
 
         if (!isPasswordMatch) {
             return res.status(401).json({ error: 'Invalid credentials' });
