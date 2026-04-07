@@ -17,9 +17,9 @@ export const createUser = async (req, res) => {
         const { roll_no, name, email, password, dob, role, department } = req.body;
         const normalizedRole = role ? role.toLowerCase() : 'user';
 
-        // Only admin can create users/subadmins
-        if (!req.user || req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Forbidden. Admin access required.' });
+        // Only admin/subadmin can create users/subadmins
+        if (!req.user || !['admin', 'subadmin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Forbidden. Admin or Subadmin access required.' });
         }
 
         // Validate required fields
@@ -56,7 +56,16 @@ export const createUser = async (req, res) => {
             }
         }
 
-        const existingUser = await User.findOne({ $or: [{ roll_no: roll_no || null }, { email }] });
+        // Build query to check for duplicate - only check roll_no if it's provided
+        let query;
+        if (normalizedRole === 'user' && roll_no) {
+            query = { $or: [{ roll_no }, { email }] };
+        } else {
+            // For subadmin/admin, only check email to avoid null matching issues
+            query = { email };
+        }
+        
+        const existingUser = await User.findOne(query);
         if (existingUser) {
             return res.status(409).json({ error: 'User with this Roll No or Email already exists' });
         }

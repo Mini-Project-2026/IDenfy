@@ -1,5 +1,7 @@
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { mockStudents } from "../../mockData";
+import { getAllUsers, uploadForUser } from "../../services/api";
+import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -29,9 +31,9 @@ import {
   Sparkles,
   Lock,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 
 const IssueCertificatePage = () => {
+  const { toast } = useToast();
   const user = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("idenfy_user"));
@@ -40,6 +42,8 @@ const IssueCertificatePage = () => {
     }
   }, []);
 
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [certificateName, setCertificateName] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -48,9 +52,43 @@ const IssueCertificatePage = () => {
   const [mintProgress, setMintProgress] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef(null);
-  const { toast } = useToast();
 
-  const filteredStudents = mockStudents.filter((s) =>
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const response = await getAllUsers();
+        const data = response.data;
+        const allUsers = Array.isArray(data) ? data : (data && data.users ? data.users : []);
+        if (!Array.isArray(allUsers)) {
+          throw new Error('Invalid response format');
+        }
+        const studentUsers = allUsers.filter(u => u.role === 'user').map(u => ({
+          id: u._id,
+          name: u.name,
+          email: u.email,
+          rollNo: u.roll_no,
+          department: u.department,
+          dob: u.dob,
+          enrolledDate: u.createdAt ? new Date(u.createdAt).toISOString().split("T")[0] : null,
+        }));
+        setStudents(studentUsers);
+      } catch (error) {
+        console.error("Failed to fetch students:", error);
+        toast({
+          title: "Failed to load students",
+          description: "Could not fetch student data from server.",
+          variant: "destructive",
+        });
+        // Fallback to mock data
+        setStudents(mockStudents);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudents();
+  }, []);
+
+  const filteredStudents = students.filter((s) =>
     s.rollNo.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -89,38 +127,34 @@ const IssueCertificatePage = () => {
     setIsMinting(true);
     setMintProgress(0);
 
-    // Simulate blockchain latency with progress
-    const steps = [
-      { progress: 15, delay: 400 },
-      { progress: 35, delay: 500 },
-      { progress: 55, delay: 600 },
-      { progress: 75, delay: 500 },
-      { progress: 90, delay: 400 },
-      { progress: 100, delay: 600 },
-    ];
+    try {
+      // Upload the file for the student
+      const response = await uploadForUser(selectedStudent.rollNo, uploadedFile, certificateName);
+      
+      setMintProgress(100);
+      
+      toast({
+        title: "Certificate Uploaded Successfully!",
+        description: `Certificate for ${selectedStudent.name} has been uploaded.`,
+      });
 
-    for (const step of steps) {
-      await new Promise((resolve) => setTimeout(resolve, step.delay));
-      setMintProgress(step.progress);
+      // Reset form
+      setSelectedStudentId("");
+      setCertificateName("");
+      setUploadedFile(null);
+    } catch (error) {
+      toast({
+        title: "Upload Failed",
+        description: error.response?.data?.message || "An error occurred during upload.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMinting(false);
+      setMintProgress(0);
     }
-
-    setIsMinting(false);
-    setMintProgress(0);
-
-    const student = mockStudents.find((s) => s.id === selectedStudentId);
-
-    toast({
-      title: "🎉 Certificate Minted Successfully!",
-      description: `Certificate for ${student?.name} has been recorded on the blockchain. CID: QmNew${Date.now().toString(36)}`,
-    });
-
-    // Reset form
-    setSelectedStudentId("");
-    setCertificateName("");
-    setUploadedFile(null);
   };
 
-  const selectedStudent = mockStudents.find(
+  const selectedStudent = students.find(
     (s) => s.id === selectedStudentId
   );
 
@@ -223,17 +257,22 @@ const IssueCertificatePage = () => {
                       />
                     </div>
                   </div>
-                  {filteredStudents.map((student) => (
-                    <SelectItem key={student.id} value={student.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-600 dark:text-slate-300 font-mono border border-slate-200 dark:border-slate-700 px-1 rounded bg-slate-100 dark:bg-slate-800">
-                          {student.rollNo}
-                        </span>
-                        <span className="font-medium text-slate-900 dark:text-white">{student.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                  {filteredStudents.length === 0 && (
+                  {loading ? (
+                    <p className="text-sm text-slate-400 text-center py-3">
+                      Loading students...
+                    </p>
+                  ) : filteredStudents.length > 0 ? (
+                    filteredStudents.map((student) => (
+                      <SelectItem key={student.id} value={student.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-600 dark:text-slate-300 font-mono border border-slate-200 dark:border-slate-700 px-1 rounded bg-slate-100 dark:bg-slate-800">
+                            {student.rollNo}
+                          </span>
+                          <span className="font-medium text-slate-900 dark:text-white">{student.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
                     <p className="text-sm text-slate-400 text-center py-3">
                       No students found.
                     </p>

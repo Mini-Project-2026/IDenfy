@@ -62,7 +62,7 @@ const LoginPage = () => {
       localStorage.setItem("idenfy_user", JSON.stringify(user));
       localStorage.setItem("idenfy_jwt", token);
 
-      if (user.role === "super_admin" || user.role === "admin" || user.role === "subadmin" || user.role === "sub_admin") {
+      if (user.role === "admin" || user.role === "subadmin") {
         navigate("/admin/dashboard");
       } else {
         navigate("/student/dashboard");

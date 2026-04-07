@@ -15,7 +15,7 @@ import { verifyToken, requireRole } from '../middlewares/auth.middleware.js';
 const router = express.Router();
 
 // Admin creates users
-router.post('/create', verifyToken, requireRole('admin'), createUser);
+router.post('/create', verifyToken, requireRole('admin', 'subadmin'), createUser);
 
 // User login
 router.post('/login', loginUser);

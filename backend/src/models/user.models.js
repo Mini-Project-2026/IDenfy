@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
             return this.role === 'user';
         },
         unique: true,
+        sparse: true,
         default: null
     },
     name: {
