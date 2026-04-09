@@ -66,40 +66,42 @@ const ManageStudentsPage = () => {
   }, []);
   
   const isAdminOrSubadmin = user?.role === "admin" || user?.role === "subadmin";
+  const isAdmin = user?.role === "admin";
+
+  const fetchStudents = async () => {
+    try {
+      const response = await getAllUsers();
+      const data = response.data;
+      const allUsers = Array.isArray(data) ? data : (data && data.users ? data.users : []);
+      if (!Array.isArray(allUsers)) {
+        throw new Error('Invalid response format');
+      }
+      // Filter for users with role 'user' (students)
+      const studentUsers = allUsers.filter(u => u.role === 'user').map(u => ({
+        id: u._id, // Use _id as id
+        name: u.name,
+        email: u.email,
+        rollNo: u.roll_no,
+        department: u.department,
+        dob: u.dob,
+        enrolledDate: u.createdAt ? new Date(u.createdAt).toISOString().split("T")[0] : null,
+      }));
+      setStudents(studentUsers);
+    } catch (error) {
+      console.error("Failed to fetch students:", error);
+      toast({
+        title: "Failed to load students",
+        description: "Could not fetch student data from server.",
+        variant: "destructive",
+      });
+      // Fallback to mock data
+      setStudents([...initialStudents]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        const response = await getAllUsers();
-        const data = response.data;
-        const allUsers = Array.isArray(data) ? data : (data && data.users ? data.users : []);
-        if (!Array.isArray(allUsers)) {
-          throw new Error('Invalid response format');
-        }
-        // Filter for users with role 'user' (students)
-        const studentUsers = allUsers.filter(u => u.role === 'user').map(u => ({
-          id: u._id, // Use _id as id
-          name: u.name,
-          email: u.email,
-          rollNo: u.roll_no,
-          department: u.department,
-          dob: u.dob,
-          enrolledDate: u.createdAt ? new Date(u.createdAt).toISOString().split("T")[0] : null,
-        }));
-        setStudents(studentUsers);
-      } catch (error) {
-        console.error("Failed to fetch students:", error);
-        toast({
-          title: "Failed to load students",
-          description: "Could not fetch student data from server.",
-          variant: "destructive",
-        });
-        // Fallback to mock data
-        setStudents([...initialStudents]);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchStudents();
   }, []);
 
@@ -344,7 +346,7 @@ const ManageStudentsPage = () => {
         </div>
 
         {/* Add Student Dialog */}
-        {isAdminOrSubadmin && (
+        {isAdmin && (
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button
@@ -407,12 +409,12 @@ const ManageStudentsPage = () => {
                 <TableHead className="font-semibold">Email</TableHead>
                 <TableHead className="font-semibold">Roll No</TableHead>
                 <TableHead className="font-semibold">Department</TableHead>
-                {isAdminOrSubadmin && (
+                {isAdmin && (
                   <TableHead className="font-semibold text-right">
                     Actions
                   </TableHead>
                 )}
-                {!isAdminOrSubadmin && (
+                {!isAdmin && (
                   <TableHead className="font-semibold text-right">
                     View
                   </TableHead>
@@ -446,7 +448,7 @@ const ManageStudentsPage = () => {
                     <TableCell className="text-slate-600 dark:text-slate-400">
                       {student.department}
                     </TableCell>
-                    {isAdminOrSubadmin ? (
+                    {isAdmin ? (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button

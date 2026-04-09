@@ -21,7 +21,7 @@ router.post('/create', verifyToken, requireRole('admin', 'subadmin'), createUser
 router.post('/login', loginUser);
 
 // Get all users (admin only)
-router.get('/all', verifyToken, requireRole('admin'), getAllUsers);
+router.get('/all', verifyToken, requireRole('admin', 'subadmin'), getAllUsers);
 
 // Get logged-in user profile
 router.get('/me', verifyToken, getMyProfile);

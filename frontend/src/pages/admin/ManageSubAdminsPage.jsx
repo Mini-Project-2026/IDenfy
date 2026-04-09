@@ -150,11 +150,11 @@ const ManageSubAdminsPage = () => {
 
       const response = await createUser(userData);
       const newAdmin = {
-        id: response.data.user._id,
+        // id: response.data.user._id,
         name: response.data.user.name,
         email: response.data.user.email,
-        role: response.data.user.role,
-        subRole: response.data.user.subRole,
+        role: "subadmin"
+        // subRole: response.data.user.subRole,
       };
 
       setAdmins([...admins, newAdmin]);
