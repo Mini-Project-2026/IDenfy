@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { authenticateUser } from "../mockData";
+import { loginUser } from "../services/api";
 import {
   Card,
   CardContent,
@@ -55,22 +55,22 @@ const LoginPage = () => {
 
     setIsLoading(true);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const user = authenticateUser(email, password);
-
-    if (user) {
-      // Store user info (simulated session)
+    try {
+      const { data } = await loginUser({ email, password });
+      
+      const { user, token } = data;
       localStorage.setItem("idenfy_user", JSON.stringify(user));
+      localStorage.setItem("idenfy_jwt", token);
 
-      if (user.role === "super_admin" || user.role === "sub_admin") {
+      if (user.role === "admin" || user.role === "subadmin") {
         navigate("/admin/dashboard");
       } else {
         navigate("/student/dashboard");
       }
-    } else {
-      setLoginError("Invalid email or password. Please try again.");
+    } catch (error) {
+      setLoginError(
+        error.response?.data?.message || "Invalid email or password. Please try again."
+      );
     }
 
     setIsLoading(false);
@@ -219,83 +219,6 @@ const LoginPage = () => {
                 )}
               </Button>
             </form>
-
-            {/* Demo credentials hint */}
-            <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-xs text-slate-400 dark:text-slate-500 text-center mb-3 uppercase tracking-wider font-medium">
-                Demo Credentials
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("admin@idenfy.com");
-                    setPassword("admin123");
-                    setErrors({});
-                    setLoginError("");
-                  }}
-                  className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-all text-left flex flex-col"
-                >
-                  <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-0.5">
-                    Super Admin
-                  </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                    admin@idenfy.com
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("academic@idenfy.com");
-                    setPassword("subadmin123");
-                    setErrors({});
-                    setLoginError("");
-                  }}
-                  className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-all text-left flex flex-col"
-                >
-                  <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-0.5">
-                    Sub-Admin (Academic)
-                  </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                    academic@idenfy.com
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("activity@idenfy.com");
-                    setPassword("subadmin123");
-                    setErrors({});
-                    setLoginError("");
-                  }}
-                  className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-all text-left flex flex-col"
-                >
-                  <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-0.5">
-                    Sub-Admin (Activity)
-                  </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                    activity@idenfy.com
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("student@idenfy.com");
-                    setPassword("student123");
-                    setErrors({});
-                    setLoginError("");
-                  }}
-                  className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-all text-left flex flex-col"
-                >
-                  <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-0.5">
-                    Student
-                  </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                    student@idenfy.com
-                  </p>
-                </button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

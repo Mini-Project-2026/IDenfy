@@ -43,32 +43,28 @@ export const createUser = async (req, res) => {
             return res.status(400).json({ error: 'Role must be subadmin or user' });
         }
 
+        // Check for existing user
+        let existingUser;
         if (normalizedRole === 'user') {
-            if (!department) {
-                return res.status(400).json({ error: 'Department is required for user role' });
-            }
-            if (!dob) {
-                return res.status(400).json({ error: 'Date of birth is required for user role' });
-            }
+            existingUser = await User.findOne({ $or: [{ roll_no }, { email }] });
         } else {
-            if (dob) {
-                return res.status(400).json({ error: 'Date of birth is only allowed for user role' });
-            }
+            existingUser = await User.findOne({ email });
         }
-
-        const existingUser = await User.findOne({ $or: [{ roll_no: roll_no || null }, { email }] });
         if (existingUser) {
-            return res.status(409).json({ error: 'User with this Roll No or Email already exists' });
+            const errorMsg = normalizedRole === 'user' 
+                ? 'User with this Roll No or Email already exists' 
+                : 'User with this Email already exists';
+            return res.status(409).json({ error: errorMsg });
         }
 
         const user = new User({
-            roll_no: normalizedRole === 'user' ? roll_no : null,
+            ...(normalizedRole === 'user' && { roll_no }),
             name,
             email,
             password,
-            fabric_identity: normalizedRole === 'user' ? roll_no : null,
-            dob: normalizedRole === 'user' ? dob : null,
-            department: normalizedRole === 'user' ? department : null,
+            ...(normalizedRole === 'user' && { fabric_identity: roll_no }),
+            ...(normalizedRole === 'user' && { dob }),
+            ...(normalizedRole === 'user' && { department }),
             role: normalizedRole
         });
 
@@ -93,19 +89,26 @@ export const loginUser = async (req, res) => {
     try {
         const { roll_no, email, password } = req.body;
 
+        console.log('Login attempt:', { roll_no, email, password: '***' });
+
         if (!password || (!roll_no && !email)) {
             return res.status(400).json({ error: 'Email/Roll No and Password are required' });
         }
 
-        const user = await User.findOne({
-            $or: [{ roll_no }, { email }]
-        });
+        let query = {};
+        if (roll_no !== undefined) query.roll_no = roll_no;
+        if (email !== undefined) query.email = email;
+
+        const user = await User.findOne(query);
+
+        console.log('Query result:', user ? { _id: user._id, email: user.email, role: user.role } : null);
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const isPasswordMatch = await user.comparePassword(password);
+        console.log('Password match:', isPasswordMatch);
 
         if (!isPasswordMatch) {
             return res.status(401).json({ error: 'Invalid credentials' });

@@ -1,7 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/toaster";
 import {
   Users,
   FileBadge,
@@ -47,13 +46,25 @@ const AdminPage = () => {
     }
   }, []);
 
+  // Redirect non-admin users to student dashboard
+  useEffect(() => {
+    if (user && user.role !== "admin" && user.role !== "subadmin") {
+      navigate("/student/dashboard");
+    }
+  }, [user, navigate]);
+
+  // If user is not admin/subadmin, don't render anything (will redirect)
+  if (!user || (user.role !== "admin" && user.role !== "subadmin")) {
+    return null;
+  }
+
   const handleLogout = () => {
     localStorage.removeItem("idenfy_user");
     navigate("/login");
   };
 
   const navItems = useMemo(() => {
-    if (user?.role === "super_admin") {
+    if (user?.role === "admin") {
       return [
         ...baseNavItems,
         {
@@ -66,7 +77,7 @@ const AdminPage = () => {
     return baseNavItems;
   }, [user]);
 
-  const adminTitle = user?.role === "super_admin" 
+  const adminTitle = user?.role === "admin" 
     ? "Super Admin" 
     : `${(user?.subRole || "Dept").charAt(0).toUpperCase() + (user?.subRole || "dept").slice(1)} Admin`;
 
@@ -245,8 +256,6 @@ const AdminPage = () => {
           <Route path="sub-admins" element={<ManageSubAdminsPage />} />
         </Routes>
       </main>
-
-      <Toaster />
     </div>
   );
 };

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { mockStudents as initialStudents, mockCertificates } from "../../mockData";
+import { createUser, getAllUsers } from "../../services/api";
 import {
   Card,
   CardContent,
@@ -44,7 +45,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 const ManageStudentsPage = () => {
-  const [students, setStudents] = useState([...initialStudents]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -63,7 +65,45 @@ const ManageStudentsPage = () => {
     }
   }, []);
   
-  const isSuperAdmin = user?.role === "super_admin";
+  const isAdminOrSubadmin = user?.role === "admin" || user?.role === "subadmin";
+  const isAdmin = user?.role === "admin";
+
+  const fetchStudents = async () => {
+    try {
+      const response = await getAllUsers();
+      const data = response.data;
+      const allUsers = Array.isArray(data) ? data : (data && data.users ? data.users : []);
+      if (!Array.isArray(allUsers)) {
+        throw new Error('Invalid response format');
+      }
+      // Filter for users with role 'user' (students)
+      const studentUsers = allUsers.filter(u => u.role === 'user').map(u => ({
+        id: u._id, // Use _id as id
+        name: u.name,
+        email: u.email,
+        rollNo: u.roll_no,
+        department: u.department,
+        dob: u.dob,
+        enrolledDate: u.createdAt ? new Date(u.createdAt).toISOString().split("T")[0] : null,
+      }));
+      setStudents(studentUsers);
+    } catch (error) {
+      console.error("Failed to fetch students:", error);
+      toast({
+        title: "Failed to load students",
+        description: "Could not fetch student data from server.",
+        variant: "destructive",
+      });
+      // Fallback to mock data
+      setStudents([...initialStudents]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
 
   // Form state
   const emptyForm = {
@@ -102,21 +142,34 @@ const ManageStudentsPage = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!validateForm()) return;
-    const newStudent = {
-      id: `stu-${Date.now()}`,
-      ...formData,
-      enrolledDate: new Date().toISOString().split("T")[0],
-    };
-    setStudents((prev) => [...prev, newStudent]);
-    setFormData({ ...emptyForm });
-    setFormErrors({});
-    setIsAddOpen(false);
-    toast({
-      title: "Student registered",
-      description: `${newStudent.name} has been added successfully.`,
-    });
+    try {
+      await createUser({
+        roll_no: formData.rollNo,
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        dob: formData.dob,
+        department: formData.department,
+        role: 'user'
+      });
+      // Refetch students
+      await fetchStudents();
+      setFormData({ ...emptyForm });
+      setFormErrors({});
+      setIsAddOpen(false);
+      toast({
+        title: "Student registered",
+        description: `${formData.name} has been added successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description: error.response?.data?.error || "An error occurred",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditOpen = (student) => {
@@ -288,12 +341,12 @@ const ManageStudentsPage = () => {
             Manage Students
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {students.length} registered student{students.length !== 1 && "s"}
+            {loading ? "Loading..." : `${students.length} registered student${students.length !== 1 && "s"}`}
           </p>
         </div>
 
         {/* Add Student Dialog */}
-        {isSuperAdmin && (
+        {isAdmin && (
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button
@@ -356,12 +409,12 @@ const ManageStudentsPage = () => {
                 <TableHead className="font-semibold">Email</TableHead>
                 <TableHead className="font-semibold">Roll No</TableHead>
                 <TableHead className="font-semibold">Department</TableHead>
-                {isSuperAdmin && (
+                {isAdmin && (
                   <TableHead className="font-semibold text-right">
                     Actions
                   </TableHead>
                 )}
-                {!isSuperAdmin && (
+                {!isAdmin && (
                   <TableHead className="font-semibold text-right">
                     View
                   </TableHead>
@@ -369,7 +422,13 @@ const ManageStudentsPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.length > 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12 text-slate-400">
+                    Loading students...
+                  </TableCell>
+                </TableRow>
+              ) : filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
                   <TableRow
                     key={student.id}
@@ -389,7 +448,7 @@ const ManageStudentsPage = () => {
                     <TableCell className="text-slate-600 dark:text-slate-400">
                       {student.department}
                     </TableCell>
-                    {isSuperAdmin ? (
+                    {isAdmin ? (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button

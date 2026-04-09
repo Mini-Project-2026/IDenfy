@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
             return this.role === 'user';
         },
         unique: true,
-        default: null
+        sparse: true
     },
     name: {
         type: String,
@@ -28,22 +28,19 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: function() {
             return this.role === 'user';
-        },
-        default: null
+        }
     },
     dob: {
         type: Date,
         required: function() {
             return this.role === 'user';
-        },
-        default: null
+        }
     },
     department: {
         type: String,
         required: function() {
             return this.role === 'user';
-        },
-        default: null
+        }
     },
     role: {
         type: String,

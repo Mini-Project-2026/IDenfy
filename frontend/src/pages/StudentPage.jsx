@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { mockCertificates, mockStudents } from "../mockData";
+import { getUserCertificates } from "../services/api";
 import {
   Card,
   CardContent,
@@ -26,7 +27,6 @@ import {
   Avatar,
   AvatarFallback,
 } from "@/components/ui/avatar";
-import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import {
   Shield,
@@ -76,9 +76,60 @@ const StudentDashboard = () => {
     }
   }, []);
 
+  // Redirect non-student users to admin dashboard
+  useEffect(() => {
+    if (user && user.role !== "user") {
+      navigate("/admin/dashboard");
+    }
+  }, [user, navigate]);
+
+  const [certificates, setCertificates] = useState([]);
+  const [loadingCerts, setLoadingCerts] = useState(true);
+
+  // Fetch user certificates
+  useEffect(() => {
+    const fetchCertificates = async () => {
+      try {
+        const response = await getUserCertificates();
+        const certs = response.data || [];
+        // Filter certificates for this user (API returns populated user object)
+        const userCerts = certs.filter(cert => cert.user && cert.user.roll_no === user.roll_no);
+        setCertificates(userCerts);
+      } catch (error) {
+        console.error("Failed to fetch certificates:", error);
+        // Fallback to mock certificates for this user
+        const userCerts = mockCertificates.filter(cert => {
+          // Find mock student with matching roll number
+          const mockStudent = mockStudents.find(s => s.rollNo === user.roll_no);
+          return mockStudent && cert.studentId === mockStudent.id;
+        });
+        setCertificates(userCerts);
+      } finally {
+        setLoadingCerts(false);
+      }
+    };
+
+    if (user?.roll_no) {
+      fetchCertificates();
+    } else {
+      setLoadingCerts(false);
+    }
+  }, [user]);
+
   const studentDetails = useMemo(() => {
-    if (!user?.studentId) return null;
-    return mockStudents.find((s) => s.id === user.studentId) || null;
+    // For real users, use their own data instead of mock data lookup
+    if (user && user.role === "user") {
+      return {
+        id: user._id || user.id || "",
+        name: user.name || "",
+        email: user.email || "",
+        rollNo: user.roll_no || user.rollNo || "",
+        department: user.department || "",
+        dob: user.dob || "",
+        enrolledDate: user.createdAt ? new Date(user.createdAt).toISOString().split("T")[0] : null,
+      };
+    }
+    return null;
   }, [user]);
 
   const [profileForm, setProfileForm] = useState({
@@ -92,12 +143,13 @@ const StudentDashboard = () => {
     newPassword: "",
     confirmPassword: "",
   });
+
   const [passwordErrors, setPasswordErrors] = useState({});
 
   const studentCerts = useMemo(() => {
-    if (!user?.studentId) return [];
-    return mockCertificates.filter((c) => c.studentId === user.studentId);
-  }, [user]);
+    if (!certificates.length) return [];
+    return certificates;
+  }, [certificates]);
 
   const academicCerts = studentCerts.filter((c) => c.category === "Academic");
   const activityCerts = studentCerts.filter((c) => c.category === "Activity");
@@ -107,6 +159,11 @@ const StudentDashboard = () => {
     if (activeFilter === "activity") return activityCerts;
     return studentCerts;
   }, [activeFilter, studentCerts, academicCerts, activityCerts]);
+
+  // If user is not a student, don't render anything (will redirect)
+  if (!user || user.role !== "user") {
+    return null;
+  }
 
   const handleCopyCid = async (cid, certId) => {
     try {
@@ -203,10 +260,10 @@ const StudentDashboard = () => {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-base leading-snug line-clamp-2">{cert.course}</CardTitle>
+            <CardTitle className="text-base leading-snug line-clamp-2">{cert.certificateName || cert.course || "Certificate"}</CardTitle>
             <CardDescription className="mt-1 flex items-center gap-1.5">
               <Building2 className="w-3 h-3" />
-              {cert.institution}
+              {cert.institution || "Institution"}
             </CardDescription>
           </div>
         </div>
@@ -215,7 +272,7 @@ const StudentDashboard = () => {
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
             <Calendar className="w-3.5 h-3.5" />
-            {new Date(cert.issueDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+            {new Date(cert.createdAt || cert.issueDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
           </div>
           <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-xs gap-1">
             <CheckCircle className="w-3 h-3" />
@@ -240,9 +297,9 @@ const StudentDashboard = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => handleCopyCid(cert.cid, cert.id)}
+          onClick={() => handleCopyCid(cert.cid, cert._id || cert.id)}
           className={`flex-1 gap-1.5 text-xs h-9 transition-all ${
-            copiedId === cert.id
+            copiedId === (cert._id || cert.id)
               ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800"
               : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
           }`}
@@ -354,10 +411,19 @@ const StudentDashboard = () => {
         </div>
 
         {/* Certificate Grid */}
-        {filteredCerts.length > 0 ? (
+        {loadingCerts ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400">Loading your certificates...</p>
+            </div>
+          </div>
+        ) : filteredCerts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredCerts.map((cert) => (
-              <CertificateCard key={cert.id} cert={cert} />
+              <CertificateCard key={cert._id || cert.id} cert={cert} />
             ))}
           </div>
         ) : (
@@ -490,8 +556,6 @@ const StudentDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Toaster />
     </div>
   );
 };

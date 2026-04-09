@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { mockUsers as initialUsers } from "../../mockData";
+import { getAllUsers, createUser } from "../../services/api";
 import {
   Card,
   CardContent,
@@ -45,9 +46,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 const ManageSubAdminsPage = () => {
-  const [admins, setAdmins] = useState(
-    [...initialUsers].filter((u) => u.role === "sub_admin")
-  );
+  const [admins, setAdmins] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -55,6 +55,39 @@ const ManageSubAdminsPage = () => {
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchSubAdmins = async () => {
+      try {
+        const response = await getAllUsers();
+        const data = response.data;
+        const allUsers = Array.isArray(data) ? data : (data && data.users ? data.users : []);
+        if (!Array.isArray(allUsers)) {
+          throw new Error('Invalid response format');
+        }
+        const subAdminUsers = allUsers.filter(u => u.role === 'subadmin').map(u => ({
+          id: u._id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          subRole: u.subRole,
+        }));
+        setAdmins(subAdminUsers);
+      } catch (error) {
+        console.error("Failed to fetch sub-admins:", error);
+        toast({
+          title: "Failed to load sub-admins",
+          description: "Could not fetch sub-admin data from server.",
+          variant: "destructive",
+        });
+        // Fallback to mock data
+        setAdmins([...initialUsers].filter((u) => u.role === "subadmin"));
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubAdmins();
+  }, []);
 
   // Form state
   const emptyForm = {
@@ -71,33 +104,76 @@ const ManageSubAdminsPage = () => {
     }
   };
 
-  const validateForm = () => {
+  const validateForm = async (isEditing = false) => {
     const errors = {};
     if (!formData.name.trim()) errors.name = "Authority Name is required.";
     if (!formData.email.trim()) errors.email = "Email is required.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       errors.email = "Invalid email format.";
+    else {
+      // In edit mode, skip email check if it's the same email
+      const isEmailChanged = !isEditing || formData.email !== selectedAdmin?.email;
+      
+      if (isEmailChanged) {
+        try {
+          // Check if email exists in entire database (all roles)
+          const allUsersResponse = await getAllUsers();
+          const allUsersData = allUsersResponse.data;
+          const allUsers = Array.isArray(allUsersData) ? allUsersData : (allUsersData && allUsersData.users ? allUsersData.users : []);
+          
+          const emailExists = allUsers.some(u => u.email && u.email.toLowerCase() === formData.email.toLowerCase());
+          if (emailExists) {
+            errors.email = "This email is already registered in the system.";
+          }
+        } catch (error) {
+          console.error("Error checking email availability:", error);
+          // If we can't check, allow the form to proceed and let backend handle it
+        }
+      }
+    }
     if (!formData.password.trim()) errors.password = "Password is required.";
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const handleAdd = () => {
-    if (!validateForm()) return;
+  const handleAdd = async () => {
+    if (!(await validateForm())) return;
 
-    const newAdmin = {
-      id: `user-${Date.now()}`,
-      ...formData,
-      role: "sub_admin",
-    };
+    try {
+      const userData = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: "subadmin",
+      };
 
-    setAdmins([...admins, newAdmin]);
-    setIsAddOpen(false);
-    toast({
-      title: "Sub-Admin Registered",
-      description: `${newAdmin.name} has been added successfully.`,
-    });
+      const response = await createUser(userData);
+      const newAdmin = {
+        // id: response.data.user._id,
+        name: response.data.user.name,
+        email: response.data.user.email,
+        role: "subadmin"
+        // subRole: response.data.user.subRole,
+      };
+
+      setAdmins([...admins, newAdmin]);
+      setIsAddOpen(false);
+      setFormData({ ...emptyForm });
+      setFormErrors({});
+      toast({
+        title: "Sub-Admin Registered",
+        description: `${newAdmin.name} has been added successfully.`,
+      });
+    } catch (error) {
+      console.error("Failed to create sub-admin:", error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || "Could not register the sub-admin.";
+      toast({
+        title: "Registration Failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditOpen = (admin) => {
@@ -111,8 +187,8 @@ const ManageSubAdminsPage = () => {
     setIsEditOpen(true);
   };
 
-  const handleEdit = () => {
-    if (!validateForm()) return;
+  const handleEdit = async () => {
+    if (!(await validateForm(true))) return;
 
     setAdmins((prev) =>
       prev.map((a) =>
@@ -143,8 +219,8 @@ const ManageSubAdminsPage = () => {
   // Filter admins
   const filteredAdmins = admins.filter(
     (a) =>
-      a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (a.name && a.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (a.email && a.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (a.subRole && a.subRole.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -285,7 +361,13 @@ const ManageSubAdminsPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAdmins.length > 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center py-12">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              ) : filteredAdmins.length > 0 ? (
                 filteredAdmins.map((admin) => (
                   <TableRow
                     key={admin.id}

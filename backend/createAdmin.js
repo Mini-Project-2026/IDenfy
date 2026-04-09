@@ -18,7 +18,6 @@ const createAdmin = async () => {
 
         // Create admin user with values from .env (expecting .env entries provided)
         const admin = new User({
-            roll_no: process.env.ADMIN_ROLL_NO,
             name: process.env.ADMIN_NAME,
             email: process.env.ADMIN_EMAIL,
             password: process.env.ADMIN_PASSWORD,
