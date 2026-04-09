@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { mockCertificates, mockStudents } from "../mockData";
-import { getUserCertificates } from "../services/api";
+import { getUserCertificates, getMyProfile, updateUser, changePassword } from "../services/api";
 import {
   Card,
   CardContent,
@@ -68,56 +67,69 @@ const StudentDashboard = () => {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
 
-  const user = useMemo(() => {
+  const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("idenfy_user"));
     } catch {
       return null;
     }
-  }, []);
+  });
+  const [certificates, setCertificates] = useState([]);
+  const [loadingCerts, setLoadingCerts] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // Redirect non-student users to admin dashboard
   useEffect(() => {
     if (user && user.role !== "user") {
       navigate("/admin/dashboard");
     }
   }, [user, navigate]);
 
-  const [certificates, setCertificates] = useState([]);
-  const [loadingCerts, setLoadingCerts] = useState(true);
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) {
+        setLoadingProfile(false);
+        return;
+      }
 
-  // Fetch user certificates
+      try {
+        const response = await getMyProfile();
+        if (response.data?.user) {
+          setUser(response.data.user);
+          localStorage.setItem("idenfy_user", JSON.stringify(response.data.user));
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user?.role]);
+
   useEffect(() => {
     const fetchCertificates = async () => {
+      if (!user) {
+        setLoadingCerts(false);
+        return;
+      }
+
       try {
         const response = await getUserCertificates();
-        const certs = response.data || [];
-        // Filter certificates for this user (API returns populated user object)
-        const userCerts = certs.filter(cert => cert.user && cert.user.roll_no === user.roll_no);
-        setCertificates(userCerts);
+        const certs = response.data?.files || [];
+        setCertificates(certs);
       } catch (error) {
         console.error("Failed to fetch certificates:", error);
-        // Fallback to mock certificates for this user
-        const userCerts = mockCertificates.filter(cert => {
-          // Find mock student with matching roll number
-          const mockStudent = mockStudents.find(s => s.rollNo === user.roll_no);
-          return mockStudent && cert.studentId === mockStudent.id;
-        });
-        setCertificates(userCerts);
+        setCertificates([]);
       } finally {
         setLoadingCerts(false);
       }
     };
 
-    if (user?.roll_no) {
-      fetchCertificates();
-    } else {
-      setLoadingCerts(false);
-    }
+    fetchCertificates();
   }, [user]);
 
   const studentDetails = useMemo(() => {
-    // For real users, use their own data instead of mock data lookup
     if (user && user.role === "user") {
       return {
         id: user._id || user.id || "",
@@ -145,6 +157,69 @@ const StudentDashboard = () => {
   });
 
   const [passwordErrors, setPasswordErrors] = useState({});
+
+  const handleSaveProfile = async () => {
+    if (!profileForm.name.trim()) {
+      toast({ title: "Validation Error", description: "Name is required." });
+      return;
+    }
+
+    try {
+      const response = await updateUser(user.roll_no, {
+        name: profileForm.name,
+        department: profileForm.department,
+        dob: profileForm.dob,
+      });
+
+      const updatedUser = response.data?.user || user;
+      setUser(updatedUser);
+      localStorage.setItem("idenfy_user", JSON.stringify(updatedUser));
+      toast({ title: "Profile Updated", description: "Your profile details have been saved successfully." });
+      setIsProfileOpen(false);
+    } catch (error) {
+      toast({
+        title: "Update Failed",
+        description:
+          error.response?.data?.error || error.response?.data?.message || "Unable to update profile.",
+      });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    const errors = {};
+    if (!passwordForm.currentPassword) {
+      errors.currentPassword = "Current password is required.";
+    }
+    if (!passwordForm.newPassword) {
+      errors.newPassword = "New password is required.";
+    } else if (passwordForm.newPassword.length < 6) {
+      errors.newPassword = "Must be at least 6 characters.";
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match.";
+    }
+
+    setPasswordErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    try {
+      await changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      toast({
+        title: "Password Changed",
+        description: "Your password has been updated successfully.",
+      });
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setPasswordErrors({});
+      setIsPasswordOpen(false);
+    } catch (error) {
+      const message =
+        error.response?.data?.error || error.response?.data?.message || "Unable to update password.";
+      setPasswordErrors({ currentPassword: message });
+    }
+  };
 
   const studentCerts = useMemo(() => {
     if (!certificates.length) return [];
@@ -202,45 +277,12 @@ const StudentDashboard = () => {
     setIsProfileOpen(true);
   };
 
-  const handleSaveProfile = () => {
-    toast({
-      title: "Profile Updated",
-      description: "Your profile details have been saved successfully.",
-    });
-    setIsProfileOpen(false);
-  };
-
   const openPasswordDialog = () => {
     setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setPasswordErrors({});
     setShowCurrentPw(false);
     setShowNewPw(false);
     setIsPasswordOpen(true);
-  };
-
-  const handleChangePassword = () => {
-    const errors = {};
-    if (!passwordForm.currentPassword) {
-      errors.currentPassword = "Current password is required.";
-    } else if (passwordForm.currentPassword !== user?.password) {
-      errors.currentPassword = "Incorrect current password.";
-    }
-    if (!passwordForm.newPassword) {
-      errors.newPassword = "New password is required.";
-    } else if (passwordForm.newPassword.length < 6) {
-      errors.newPassword = "Must be at least 6 characters.";
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      errors.confirmPassword = "Passwords do not match.";
-    }
-    setPasswordErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-
-    toast({
-      title: "Password Changed",
-      description: "Your password has been updated successfully.",
-    });
-    setIsPasswordOpen(false);
   };
 
   const CertificateCard = ({ cert }) => (
@@ -304,7 +346,7 @@ const StudentDashboard = () => {
               : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
           }`}
         >
-          {copiedId === cert.id ? (
+          {copiedId === (cert._id || cert.id) ? (
             <><CheckCircle className="w-3.5 h-3.5" />Copied!</>
           ) : (
             <><Copy className="w-3.5 h-3.5" />Copy CID</>

@@ -42,4 +42,10 @@ export const getUserCertificates = () =>
 export const getAllCertificates = () =>
   API.get("/fileUpload/get-files");
 
+export const getMyProfile = () =>
+  API.get("/users/me");
+
+export const changePassword = (data) =>
+  API.put("/users/change-password", data);
+
 export default API;
