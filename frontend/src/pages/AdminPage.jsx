@@ -12,7 +12,7 @@ import {
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
-import { mockStudents, mockCertificates } from "../mockData";
+import { getStudentCount, getCertificateCount, getCertificateCountsByDate, getAllCertificates } from "../services/api";
 import ManageStudentsPage from "./admin/ManageStudentsPage";
 import IssueCertificatePage from "./admin/IssueCertificatePage";
 import ManageSubAdminsPage from "./admin/ManageSubAdminsPage";
@@ -81,20 +81,60 @@ const AdminPage = () => {
     ? "Super Admin" 
     : `${(user?.subRole || "Dept").charAt(0).toUpperCase() + (user?.subRole || "dept").slice(1)} Admin`;
 
-  // --- Calculate Analytics ---
-  const totalStudents = mockStudents.length;
-  const totalCerts = mockCertificates.length;
-  
-  // Data for Line Chart (Certs by Month)
-  const certsByMonth = mockCertificates.reduce((acc, cert) => {
-    const month = cert.issueDate.substring(0, 7); // yyyy-mm format
-    acc[month] = (acc[month] || 0) + 1;
-    return acc;
-  }, {});
-  const lineData = Object.keys(certsByMonth).sort().map(month => ({
-    name: month,
-    certificates: certsByMonth[month]
-  }));
+
+  // --- Calculate Analytics (Dynamic) ---
+  const [totalStudents, setTotalStudents] = React.useState(0);
+  const [totalCerts, setTotalCerts] = React.useState(0);
+  const [lineData, setLineData] = React.useState([]);
+  const [certificates, setCertificates] = React.useState([]);
+  const [certsLoading, setCertsLoading] = React.useState(true);
+
+  // Refetch dashboard stats
+  const fetchDashboardStats = React.useCallback(async () => {
+    try {
+      const [studentsRes, certsRes, lineRes] = await Promise.all([
+        getStudentCount(),
+        getCertificateCount(),
+        getCertificateCountsByDate()
+      ]);
+      setTotalStudents(studentsRes.data.count);
+      setTotalCerts(certsRes.data.count);
+      if (lineRes.data && lineRes.data.counts) {
+        const sorted = [...lineRes.data.counts].sort((a, b) => a.date.localeCompare(b.date));
+        const chartData = sorted.map(item => ({
+          name: item.date,
+          certificates: item.count
+        }));
+        setLineData(chartData);
+      }
+    } catch (err) {
+      // Optionally handle error
+    }
+  }, []);
+
+
+  // Fetch all certificates for the table
+  const fetchCertificates = React.useCallback(async () => {
+    setCertsLoading(true);
+    try {
+      const res = await getAllCertificates();
+      let certs = Array.isArray(res.data.files) ? res.data.files : [];
+      // If subadmin, filter to only certificates issued by this subadmin
+      if (user?.role === 'subadmin' && user?._id) {
+        certs = certs.filter(cert => cert.issuer?._id === user._id);
+      }
+      setCertificates(certs);
+    } catch (err) {
+      setCertificates([]);
+    } finally {
+      setCertsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchDashboardStats();
+    fetchCertificates();
+  }, [fetchDashboardStats, fetchCertificates]);
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex">
@@ -180,7 +220,13 @@ const AdminPage = () => {
                       {totalStudents}
                     </p>
                   </div>
-                  <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <div
+                    className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm cursor-pointer hover:shadow-md transition"
+                    onClick={() => {
+                      const certSection = document.getElementById('certificates-table-section');
+                      if (certSection) certSection.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="p-2 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg">
                         <FileBadge className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -190,7 +236,7 @@ const AdminPage = () => {
                       </p>
                     </div>
                     <p className="text-3xl font-bold text-slate-900 dark:text-white">
-                      {totalCerts}
+                      {user?.role === 'subadmin' ? certificates.length : totalCerts}
                     </p>
                   </div>
                   <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -248,11 +294,98 @@ const AdminPage = () => {
                   </div>
                 </div>
 
+                {/* All Certificates Table */}
+                <div className="mt-10" id="certificates-table-section">
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <FileBadge className="w-5 h-5 text-indigo-500" />
+                    All Certificates
+                  </h2>
+                  {/* Render a separate table for each issuer */}
+                  {certsLoading ? (
+                    <div className="text-center py-8 text-slate-400">Loading certificates...</div>
+                  ) : certificates.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400">No certificates found.</div>
+                  ) : user.role === 'admin' ? (
+                    Object.entries(
+                      certificates.reduce((acc, cert) => {
+                        const issuerName = cert.issuer?.name || 'Unknown Issuer';
+                        let issuerRole = '';
+                        if (cert.issuer?.role) {
+                          if (cert.issuer.role === 'admin') issuerRole = 'Admin';
+                          else if (cert.issuer.role === 'subadmin') issuerRole = 'Subadmin';
+                          else issuerRole = cert.issuer.role.charAt(0).toUpperCase() + cert.issuer.role.slice(1);
+                        }
+                        const issuerKey = issuerRole ? `${issuerName} (${issuerRole})` : issuerName;
+                        if (!acc[issuerKey]) acc[issuerKey] = [];
+                        acc[issuerKey].push(cert);
+                        return acc;
+                      }, {})
+                    ).map(([issuer, certs]) => (
+                      <div key={issuer} className="mb-8">
+                        <h3 className="text-base font-semibold text-indigo-700 dark:text-indigo-300 mb-2">Issuer: {issuer}</h3>
+                        <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+                            <thead>
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Certificate Name</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Student</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {certs.map(cert => (
+                                <tr key={cert._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                  <td className="px-4 py-2 text-slate-900 dark:text-white font-medium">{cert.certificateName || cert.course || 'Certificate'}</td>
+                                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{cert.user?.name || 'N/A'}</td>
+                                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{cert.createdAt ? cert.createdAt.substring(0, 10) : ''}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    Object.entries(
+                      certificates.reduce((acc, cert) => {
+                        const issuerName = cert.issuer?.name || 'Unknown Issuer';
+                        if (!acc[issuerName]) acc[issuerName] = [];
+                        acc[issuerName].push(cert);
+                        return acc;
+                      }, {})
+                    ).map(([issuer, certs]) => (
+                      <div key={issuer} className="mb-8">
+                        <h3 className="text-base font-semibold text-indigo-700 dark:text-indigo-300 mb-2">Issuer: {issuer}</h3>
+                        <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+                            <thead>
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Certificate Name</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Student</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {certs.map(cert => (
+                                <tr key={cert._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                  <td className="px-4 py-2 text-slate-900 dark:text-white font-medium">{cert.certificateName || cert.course || 'Certificate'}</td>
+                                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{cert.user?.name || 'N/A'}</td>
+                                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{cert.createdAt ? cert.createdAt.substring(0, 10) : ''}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
               </div>
             }
           />
-          <Route path="students" element={<ManageStudentsPage />} />
-          <Route path="issue" element={<IssueCertificatePage />} />
+          <Route path="students" element={<ManageStudentsPage onDataChanged={fetchDashboardStats} />} />
+          <Route path="issue" element={<IssueCertificatePage onCertificateIssued={fetchDashboardStats} />} />
           <Route path="sub-admins" element={<ManageSubAdminsPage />} />
         </Routes>
       </main>

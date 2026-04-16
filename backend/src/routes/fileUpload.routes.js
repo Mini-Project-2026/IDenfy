@@ -1,9 +1,13 @@
 import { Router } from "express";
-import { getFiles, uploadImageForUser, getCertificateCountsByDate } from '../controllers/fileUpload.controller.js';
+import { getFiles, uploadImageForUser, getCertificateCountsByDate, getCertificateCount, deleteCertificate } from '../controllers/fileUpload.controller.js';
 import upload from "../middlewares/upload.middleware.js";
 import { verifyToken } from "../middlewares/auth.middleware.js";
 
 const fileRouter = Router();
+
+// Route to get certificate count (admin/subadmin only)
+fileRouter.route('/certificate-count').get(verifyToken, getCertificateCount);
+
 
 // Route to retrieve files (requires authentication; admins can see all, users see their own)
 fileRouter.route("/get-files").get(verifyToken, getFiles);
@@ -15,4 +19,6 @@ fileRouter.route("/certificate-counts").get(verifyToken, getCertificateCountsByD
 fileRouter.route("/upload-for-user/:roll_no").post(verifyToken, upload.single("file"), uploadImageForUser);
 
 export default fileRouter;
+// Route to delete a certificate by ID (admin/subadmin only)
+fileRouter.delete('/delete-certificate/:id', verifyToken, deleteCertificate);
 

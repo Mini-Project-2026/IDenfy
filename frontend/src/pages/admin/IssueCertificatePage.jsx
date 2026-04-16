@@ -32,7 +32,7 @@ import {
   Lock,
 } from "lucide-react";
 
-const IssueCertificatePage = () => {
+const IssueCertificatePage = ({ onCertificateIssued }) => {
   const { toast } = useToast();
   const user = useMemo(() => {
     try {
@@ -142,6 +142,10 @@ const IssueCertificatePage = () => {
       setSelectedStudentId("");
       setCertificateName("");
       setUploadedFile(null);
+      // Notify parent to refresh dashboard
+      if (typeof onCertificateIssued === 'function') {
+        onCertificateIssued();
+      }
     } catch (error) {
       toast({
         title: "Upload Failed",

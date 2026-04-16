@@ -1,3 +1,5 @@
+// Update subadmin by _id
+export const updateSubadmin = (id, data) => API.put(`/users/update-subadmin/${id}`, data);
 import axios from "axios";
 
 const API = axios.create({
@@ -20,7 +22,7 @@ export const getAllUsers = () => API.get("/users/all");
 
 export const updateUser = (rollNo, data) => API.put(`/users/update/${rollNo}`, data);
 
-export const deleteUser = (rollNo) => API.delete(`/users/delete/${rollNo}`);
+// deleteUser removed as user deletion is disabled
 
 export const uploadForUser = (rollNo, file, certificateName) => {
   const formData = new FormData();
@@ -41,5 +43,13 @@ export const getUserCertificates = () =>
 
 export const getAllCertificates = () =>
   API.get("/fileUpload/get-files");
+
+export const getStudentCount = () => API.get("/users/student-count");
+export const getCertificateCount = () => API.get("/fileUpload/certificate-count");
+export const getCertificateCountsByDate = () => API.get("/fileUpload/certificate-counts");
+
+export const getCertificatesByStudent = (rollNo) => API.get(`/fileUpload/get-files?roll_no=${rollNo}`);
+
+export const deleteCertificate = (id) => API.delete(`/fileUpload/delete-certificate/${id}`);
 
 export default API;

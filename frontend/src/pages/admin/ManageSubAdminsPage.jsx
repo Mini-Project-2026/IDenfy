@@ -1,6 +1,6 @@
+import { getAllUsers, createUser, updateSubadmin } from "../../services/api";
 import React, { useState, useEffect } from "react";
 import { mockUsers as initialUsers } from "../../mockData";
-import { getAllUsers, createUser } from "../../services/api";
 import {
   Card,
   CardContent,
@@ -113,26 +113,21 @@ const ManageSubAdminsPage = () => {
     else {
       // In edit mode, skip email check if it's the same email
       const isEmailChanged = !isEditing || formData.email !== selectedAdmin?.email;
-      
       if (isEmailChanged) {
         try {
           // Check if email exists in entire database (all roles)
           const allUsersResponse = await getAllUsers();
           const allUsersData = allUsersResponse.data;
           const allUsers = Array.isArray(allUsersData) ? allUsersData : (allUsersData && allUsersData.users ? allUsersData.users : []);
-          
           const emailExists = allUsers.some(u => u.email && u.email.toLowerCase() === formData.email.toLowerCase());
           if (emailExists) {
             errors.email = "This email is already registered in the system.";
           }
         } catch (error) {
           console.error("Error checking email availability:", error);
-          // If we can't check, allow the form to proceed and let backend handle it
         }
       }
     }
-    if (!formData.password.trim()) errors.password = "Password is required.";
-
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -181,7 +176,6 @@ const ManageSubAdminsPage = () => {
     setFormData({
       name: admin.name,
       email: admin.email,
-      password: admin.password,
     });
     setFormErrors({});
     setIsEditOpen(true);
@@ -190,31 +184,34 @@ const ManageSubAdminsPage = () => {
   const handleEdit = async () => {
     if (!(await validateForm(true))) return;
 
-    setAdmins((prev) =>
-      prev.map((a) =>
-        a.id === selectedAdmin.id ? { ...a, ...formData } : a
-      )
-    );
-    setIsEditOpen(false);
-    toast({
-      title: "Sub-Admin Updated",
-      description: `${formData.name}'s details have been updated.`,
-    });
+    try {
+      const updatedData = {
+        name: formData.name,
+        email: formData.email,
+      };
+      await updateSubadmin(selectedAdmin.id, updatedData);
+      setAdmins((prev) =>
+        prev.map((a) =>
+          a.id === selectedAdmin.id ? { ...a, ...formData } : a
+        )
+      );
+      setIsEditOpen(false);
+      toast({
+        title: "Sub-Admin Updated",
+        description: `${formData.name}'s details have been updated and saved to the backend.`,
+      });
+    } catch (error) {
+      console.error("Failed to update sub-admin:", error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || "Could not update the sub-admin.";
+      toast({
+        title: "Update Failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteOpen = (admin) => {
-    setSelectedAdmin(admin);
-    setIsDeleteOpen(true);
-  };
 
-  const handleDelete = () => {
-    setAdmins((prev) => prev.filter((a) => a.id !== selectedAdmin.id));
-    setIsDeleteOpen(false);
-    toast({
-      title: "Sub-Admin Removed",
-      description: `${selectedAdmin.name} has been removed.`,
-    });
-  };
 
   // Filter admins
   const filteredAdmins = admins.filter(
@@ -251,7 +248,8 @@ const ManageSubAdminsPage = () => {
           placeholder="e.g., dean@idenfy.com"
           value={formData.email}
           onChange={(e) => handleFormChange("email", e.target.value)}
-          className={formErrors.email ? "border-red-400" : ""}
+          readOnly={isEditOpen}
+          className={formErrors.email ? (isEditOpen ? "border-red-400 bg-gray-100 cursor-not-allowed" : "border-red-400") : (isEditOpen ? "bg-gray-100 cursor-not-allowed" : "")}
         />
         {formErrors.email && (
           <p className="text-xs text-red-500 flex items-center gap-1">
@@ -261,23 +259,26 @@ const ManageSubAdminsPage = () => {
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="text"
-          placeholder="e.g., secret123"
-          value={formData.password}
-          onChange={(e) => handleFormChange("password", e.target.value)}
-          className={formErrors.password ? "border-red-400" : ""}
-        />
-        {formErrors.password && (
-          <p className="text-xs text-red-500 flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" />
-            {formErrors.password}
-          </p>
-        )}
-      </div>
+      {/* Password field only for Add */}
+      {!isEditOpen && (
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter password"
+            value={formData.password}
+            onChange={(e) => handleFormChange("password", e.target.value)}
+            className={formErrors.password ? "border-red-400" : ""}
+          />
+          {formErrors.password && (
+            <p className="text-xs text-red-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {formErrors.password}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -389,14 +390,7 @@ const ManageSubAdminsPage = () => {
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteOpen(admin)}
-                          className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+
                       </div>
                     </TableCell>
                   </TableRow>
@@ -442,34 +436,7 @@ const ManageSubAdminsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-red-600 dark:text-red-400">
-              Remove Administrator
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to remove{" "}
-              <span className="font-semibold text-slate-900 dark:text-white">
-                {selectedAdmin?.name}
-              </span>{" "}
-              from the system? This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button variant="ghost">Cancel</Button>
-            </DialogClose>
-            <Button
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Remove
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 };

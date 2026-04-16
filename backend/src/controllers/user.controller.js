@@ -1,3 +1,4 @@
+
 import main from '../../chaincode-config/registerUser.js';
 import { User } from '../models/user.models.js';
 import jwt from 'jsonwebtoken';
@@ -309,6 +310,45 @@ export const deleteUser = async (req, res) => {
         }
 
         res.status(200).json({ message: 'User deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
+// Update subadmin by _id
+export const updateSubadmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+            return res.status(400).json({ error: 'Invalid subadmin id' });
+        }
+        const { name } = req.body;
+        if (!name) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+        const updateData = { name };
+        const user = await User.findOneAndUpdate(
+            { _id: id, role: 'subadmin' },
+            updateData,
+            { new: true, runValidators: true }
+        ).select('-password');
+        if (!user) {
+            return res.status(404).json({ error: 'Subadmin not found' });
+        }
+        res.status(200).json({ message: 'Subadmin updated successfully', user });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+// Get count of students (users with role 'user')
+export const getStudentCount = async (req, res) => {
+    try {
+        if (!req.user || !['admin', 'subadmin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Forbidden. Admin or subadmin access required.' });
+        }
+        const count = await User.countDocuments({ role: 'user' });
+        res.status(200).json({ count });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

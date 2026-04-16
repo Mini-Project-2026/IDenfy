@@ -1,3 +1,20 @@
+// Delete certificate by ID (admin/subadmin only)
+export const deleteCertificate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.user || !['admin', 'subadmin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Admin or subadmin access required.' });
+    }
+    const cert = await Image.findByIdAndDelete(id);
+    if (!cert) {
+      return res.status(404).json({ success: false, message: 'Certificate not found.' });
+    }
+    res.status(200).json({ success: true, message: 'Certificate deleted successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to delete certificate', error: err.message });
+  }
+};
 import ipfs from '../utils/ipfs.js';
 import { Image } from '../models/file.models.js';
 import { User } from '../models/user.models.js';
@@ -76,47 +93,71 @@ import { storeCertificateOnBlockchain } from './fabricService.controller.js';
 //   }
 // };
 
+
+// Get count of certificates (all files)
+export const getCertificateCount = async (req, res) => {
+  try {
+    if (!req.user || !['admin', 'subadmin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden. Admin or subadmin access required.' });
+    }
+    const count = await Image.countDocuments();
+    res.status(200).json({ count });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const getFiles = async (req, res) => {
   try {
-    const userId = req.user?.userId; // Get authenticated user's ID from JWT
-    const { id } = req.query; // Optional: get specific file by ID
+    const userId = req.user?.userId;
+    const { id, roll_no } = req.query;
 
-    if(!userId){
-        return res.status(401).json({
-            success:false,
-            message:"User not authenticated. Please login first."
-        });
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated. Please login first."
+      });
     }
 
-    // Get files for authenticated user. Admins can fetch all or specific file by id.
     let query = {};
 
-    if (req.user.role === 'user') {
-        query.user = userId;
+
+    if (roll_no) {
+      // Find user by roll_no
+      const student = await User.findOne({ roll_no });
+      if (student) {
+        query.user = student._id;
+      } else {
+        // No such student, return empty
+        return res.status(200).json({ success: true, count: 0, files: [] });
+      }
+    } else if (req.user.role === 'user') {
+      query.user = userId;
     } else if (req.user.role === 'subadmin') {
-        query.issuer = userId;
+      query.issuer = userId;
     }
 
     // If specific ID provided, fetch that specific file
     if (id) {
-        query._id = id;
+      query._id = id;
     }
 
     const files = await Image.find(query)
-        .populate('user', '-password') // Populate user info without password
-        .sort({ createdAt: -1 });
+      .populate('user', '-password')
+      .populate('issuer', 'name role')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
-        success: true,
-        count: files.length,
-        files: files
+      success: true,
+      count: files.length,
+      files: files
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({
-        success: false,
-        message: 'Failed to retrieve files',
-        error: err.message
+      success: false,
+      message: 'Failed to retrieve files',
+      error: err.message
     });
   }
 };
@@ -140,10 +181,8 @@ export const getCertificateCountsByDate = async (req, res) => {
       });
     }
 
+    // Show all certificates for both admin and subadmin
     const match = {};
-    if (userRole === 'subadmin') {
-      match.issuer = userId;
-    }
 
     const counts = await Image.aggregate([
       { $match: match },
