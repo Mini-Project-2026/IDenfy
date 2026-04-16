@@ -8,11 +8,17 @@ import {
     getMyProfile,
     changePassword,
     updateUser,
-    deleteUser
+    deleteUser,
+    getStudentCount,
+    updateSubadmin
 } from '../controllers/user.controller.js';
 import { verifyToken, requireRole } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
+
+// Get count of students (admin/subadmin only)
+router.get('/student-count', verifyToken, requireRole('admin', 'subadmin'), getStudentCount);
+
 
 // Admin creates users
 router.post('/create', verifyToken, requireRole('admin', 'subadmin'), createUser);
@@ -40,5 +46,8 @@ router.put('/update/:roll_no', verifyToken, updateUser);
 
 // Delete user by roll number (admin only)
 router.delete('/delete/:roll_no', verifyToken, requireRole('admin'), deleteUser);
+
+// Update subadmin by _id
+router.put('/update-subadmin/:id', verifyToken, requireRole('admin'), updateSubadmin);
 
 export default router;
