@@ -77,8 +77,8 @@ const AdminPage = () => {
     return baseNavItems;
   }, [user]);
 
-  const adminTitle = user?.role === "admin" 
-    ? "Super Admin" 
+  const adminTitle = user?.role === "admin"
+    ? "Super Admin"
     : `${(user?.subRole || "Dept").charAt(0).toUpperCase() + (user?.subRole || "dept").slice(1)} Admin`;
 
 
@@ -122,7 +122,7 @@ const AdminPage = () => {
       // If subadmin, filter to only certificates issued by this subadmin
       if (user?.role === 'subadmin' && user?._id) {
         certs = certs.filter(cert => cert.issuer?._id === user._id);
-        
+
         const counts = {};
         certs.forEach(cert => {
           if (cert.createdAt) {
@@ -173,10 +173,9 @@ const AdminPage = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                  isActive
-                    ? "bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white"
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${isActive
+                  ? "bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white"
                 }`
               }
             >
@@ -264,30 +263,30 @@ const AdminPage = () => {
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={lineData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                          <XAxis 
-                            dataKey="name" 
-                            stroke="#64748b" 
-                            fontSize={12} 
-                            tickLine={false} 
-                            axisLine={false} 
+                          <XAxis
+                            dataKey="name"
+                            stroke="#64748b"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
                           />
-                          <YAxis 
-                            stroke="#64748b" 
-                            fontSize={12} 
-                            tickLine={false} 
-                            axisLine={false} 
+                          <YAxis
+                            stroke="#64748b"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
                             allowDecimals={false}
                           />
-                          <RechartsTooltip 
-                            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                          <RechartsTooltip
+                            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           />
-                          <Line 
-                            type="monotone" 
-                            dataKey="certificates" 
-                            stroke="#4f46e5" 
-                            strokeWidth={3} 
-                            dot={{ r: 4, strokeWidth: 2 }} 
-                            activeDot={{ r: 6, stroke: '#4f46e5', strokeWidth: 2, fill: '#fff' }} 
+                          <Line
+                            type="monotone"
+                            dataKey="certificates"
+                            stroke="#4f46e5"
+                            strokeWidth={3}
+                            dot={{ r: 4, strokeWidth: 2 }}
+                            activeDot={{ r: 6, stroke: '#4f46e5', strokeWidth: 2, fill: '#fff' }}
                           />
                         </LineChart>
                       </ResponsiveContainer>
@@ -393,5 +392,7 @@ const AdminPage = () => {
     </div>
   );
 };
+
+
 
 export default AdminPage;
