@@ -24,7 +24,7 @@ const baseNavItems = [
     icon: LayoutDashboard,
   },
   {
-    label: "Manage Students",
+    label: "Students",
     path: "/admin/students",
     icon: Users,
   },
@@ -99,7 +99,7 @@ const AdminPage = () => {
       ]);
       setTotalStudents(studentsRes.data.count);
       setTotalCerts(certsRes.data.count);
-      if (lineRes.data && lineRes.data.counts) {
+      if (user?.role !== 'subadmin' && lineRes.data && lineRes.data.counts) {
         const sorted = [...lineRes.data.counts].sort((a, b) => a.date.localeCompare(b.date));
         const chartData = sorted.map(item => ({
           name: item.date,
@@ -110,7 +110,7 @@ const AdminPage = () => {
     } catch (err) {
       // Optionally handle error
     }
-  }, []);
+  }, [user]);
 
 
   // Fetch all certificates for the table
@@ -122,6 +122,19 @@ const AdminPage = () => {
       // If subadmin, filter to only certificates issued by this subadmin
       if (user?.role === 'subadmin' && user?._id) {
         certs = certs.filter(cert => cert.issuer?._id === user._id);
+        
+        const counts = {};
+        certs.forEach(cert => {
+          if (cert.createdAt) {
+            const date = cert.createdAt.substring(0, 10);
+            counts[date] = (counts[date] || 0) + 1;
+          }
+        });
+        const chartData = Object.keys(counts).sort().map(date => ({
+          name: date,
+          certificates: counts[date]
+        }));
+        setLineData(chartData);
       }
       setCertificates(certs);
     } catch (err) {
@@ -206,7 +219,7 @@ const AdminPage = () => {
                 </p>
 
                 {/* Quick stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                   <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="p-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg">
@@ -239,19 +252,7 @@ const AdminPage = () => {
                       {user?.role === 'subadmin' ? certificates.length : totalCerts}
                     </p>
                   </div>
-                  <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
-                        <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Blockchain Verified
-                      </p>
-                    </div>
-                    <p className="text-3xl font-bold text-slate-900 dark:text-white">
-                      {totalCerts}
-                    </p>
-                  </div>
+
                 </div>
 
                 {/* Charts */}
@@ -384,8 +385,8 @@ const AdminPage = () => {
               </div>
             }
           />
-          <Route path="students" element={<ManageStudentsPage onDataChanged={fetchDashboardStats} />} />
-          <Route path="issue" element={<IssueCertificatePage onCertificateIssued={fetchDashboardStats} />} />
+          <Route path="students" element={<ManageStudentsPage onDataChanged={() => { fetchDashboardStats(); fetchCertificates(); }} />} />
+          <Route path="issue" element={<IssueCertificatePage onCertificateIssued={() => { fetchDashboardStats(); fetchCertificates(); }} />} />
           <Route path="sub-admins" element={<ManageSubAdminsPage />} />
         </Routes>
       </main>

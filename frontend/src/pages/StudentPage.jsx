@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { mockCertificates, mockStudents } from "../mockData";
-import { getUserCertificates } from "../services/api";
+import { getUserCertificates, getMyProfile, updateUser, changePassword as changePasswordApi } from "../services/api";
 import {
   Card,
   CardContent,
@@ -46,6 +45,8 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Pencil,
+  ChevronDown,
 } from "lucide-react";
 
 const getInitials = (name) => {
@@ -62,11 +63,23 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [copiedId, setCopiedId] = useState(null);
-  const [activeFilter, setActiveFilter] = useState("all");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const user = useMemo(() => {
     try {
@@ -86,24 +99,16 @@ const StudentDashboard = () => {
   const [certificates, setCertificates] = useState([]);
   const [loadingCerts, setLoadingCerts] = useState(true);
 
-  // Fetch user certificates
+  // Fetch user certificates from backend
   useEffect(() => {
     const fetchCertificates = async () => {
       try {
         const response = await getUserCertificates();
-        const certs = response.data || [];
-        // Filter certificates for this user (API returns populated user object)
-        const userCerts = certs.filter(cert => cert.user && cert.user.roll_no === user.roll_no);
-        setCertificates(userCerts);
+        const certs = Array.isArray(response.data.files) ? response.data.files : [];
+        setCertificates(certs);
       } catch (error) {
         console.error("Failed to fetch certificates:", error);
-        // Fallback to mock certificates for this user
-        const userCerts = mockCertificates.filter(cert => {
-          // Find mock student with matching roll number
-          const mockStudent = mockStudents.find(s => s.rollNo === user.roll_no);
-          return mockStudent && cert.studentId === mockStudent.id;
-        });
-        setCertificates(userCerts);
+        setCertificates([]);
       } finally {
         setLoadingCerts(false);
       }
@@ -116,20 +121,29 @@ const StudentDashboard = () => {
     }
   }, [user]);
 
-  const studentDetails = useMemo(() => {
-    // For real users, use their own data instead of mock data lookup
-    if (user && user.role === "user") {
-      return {
-        id: user._id || user.id || "",
-        name: user.name || "",
-        email: user.email || "",
-        rollNo: user.roll_no || user.rollNo || "",
-        department: user.department || "",
-        dob: user.dob || "",
-        enrolledDate: user.createdAt ? new Date(user.createdAt).toISOString().split("T")[0] : null,
-      };
+  const [studentDetails, setStudentDetails] = useState(null);
+
+  // Fetch profile from backend
+  const fetchProfile = async () => {
+    try {
+      const res = await getMyProfile();
+      const u = res.data.user;
+      setStudentDetails({
+        id: u._id || "",
+        name: u.name || "",
+        email: u.email || "",
+        rollNo: u.roll_no || "",
+        department: u.department || "",
+        dob: u.dob ? u.dob.split("T")[0] : "",
+        enrolledDate: u.createdAt ? new Date(u.createdAt).toISOString().split("T")[0] : null,
+      });
+    } catch (err) {
+      console.error("Failed to fetch profile:", err);
     }
-    return null;
+  };
+
+  useEffect(() => {
+    if (user) fetchProfile();
   }, [user]);
 
   const [profileForm, setProfileForm] = useState({
@@ -150,15 +164,6 @@ const StudentDashboard = () => {
     if (!certificates.length) return [];
     return certificates;
   }, [certificates]);
-
-  const academicCerts = studentCerts.filter((c) => c.category === "Academic");
-  const activityCerts = studentCerts.filter((c) => c.category === "Activity");
-
-  const filteredCerts = useMemo(() => {
-    if (activeFilter === "academic") return academicCerts;
-    if (activeFilter === "activity") return activityCerts;
-    return studentCerts;
-  }, [activeFilter, studentCerts, academicCerts, activityCerts]);
 
   // If user is not a student, don't render anything (will redirect)
   if (!user || user.role !== "user") {
@@ -193,7 +198,8 @@ const StudentDashboard = () => {
     navigate("/login");
   };
 
-  const openProfile = () => {
+  const openProfile = async () => {
+    await fetchProfile();
     setProfileForm({
       name: studentDetails?.name || "",
       department: studentDetails?.department || "",
@@ -202,12 +208,37 @@ const StudentDashboard = () => {
     setIsProfileOpen(true);
   };
 
-  const handleSaveProfile = () => {
-    toast({
-      title: "Profile Updated",
-      description: "Your profile details have been saved successfully.",
-    });
-    setIsProfileOpen(false);
+  // Update profileForm when studentDetails changes (after fetch)
+  useEffect(() => {
+    if (studentDetails && isProfileOpen) {
+      setProfileForm({
+        name: studentDetails.name || "",
+        department: studentDetails.department || "",
+        dob: studentDetails.dob || "",
+      });
+    }
+  }, [studentDetails]);
+
+  const handleSaveProfile = async () => {
+    try {
+      await updateUser(studentDetails.rollNo, {
+        name: profileForm.name,
+        dob: profileForm.dob,
+        department: profileForm.department,
+      });
+      await fetchProfile();
+      toast({
+        title: "Profile Updated",
+        description: "Your profile details have been saved successfully.",
+      });
+      setIsProfileOpen(false);
+    } catch (err) {
+      toast({
+        title: "Update Failed",
+        description: err.response?.data?.error || "An error occurred while updating your profile.",
+        variant: "destructive",
+      });
+    }
   };
 
   const openPasswordDialog = () => {
@@ -218,12 +249,10 @@ const StudentDashboard = () => {
     setIsPasswordOpen(true);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     const errors = {};
     if (!passwordForm.currentPassword) {
       errors.currentPassword = "Current password is required.";
-    } else if (passwordForm.currentPassword !== user?.password) {
-      errors.currentPassword = "Incorrect current password.";
     }
     if (!passwordForm.newPassword) {
       errors.newPassword = "New password is required.";
@@ -236,11 +265,20 @@ const StudentDashboard = () => {
     setPasswordErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    toast({
-      title: "Password Changed",
-      description: "Your password has been updated successfully.",
-    });
-    setIsPasswordOpen(false);
+    try {
+      await changePasswordApi({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      toast({
+        title: "Password Changed",
+        description: "Your password has been updated successfully.",
+      });
+      setIsPasswordOpen(false);
+    } catch (err) {
+      const msg = err.response?.data?.error || "Failed to change password.";
+      setPasswordErrors({ currentPassword: msg });
+    }
   };
 
   const CertificateCard = ({ cert }) => (
@@ -252,12 +290,8 @@ const StudentDashboard = () => {
       </div>
       <CardHeader className="pb-3">
         <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-lg shrink-0 ${cert.category === "Academic" ? "bg-indigo-50 dark:bg-indigo-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}>
-            {cert.category === "Academic" ? (
-              <GraduationCap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            ) : (
-              <Trophy className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            )}
+          <div className="p-2 rounded-lg shrink-0 bg-indigo-50 dark:bg-indigo-950/30">
+            <GraduationCap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base leading-snug line-clamp-2">{cert.certificateName || cert.course || "Certificate"}</CardTitle>
@@ -342,31 +376,50 @@ const StudentDashboard = () => {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={openProfile}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              id="profile-btn"
-              type="button"
-            >
-              <Avatar className="h-8 w-8 border-2 border-indigo-200 dark:border-indigo-800">
-                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-xs font-semibold">
-                  {getInitials(user?.name)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 hidden sm:inline">
-                {user?.name}
-              </span>
-            </button>
-            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="gap-1.5 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                onClick={() => setProfileMenuOpen((v) => !v)}
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                id="profile-btn"
+                type="button"
+              >
+                <Avatar className="h-8 w-8 border-2 border-indigo-200 dark:border-indigo-800">
+                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-xs font-semibold">
+                    {getInitials(studentDetails?.name || user?.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 hidden sm:inline">
+                  {studentDetails?.name || user?.name}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {profileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <button
+                    onClick={() => { setProfileMenuOpen(false); openProfile(); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4 text-slate-400" />
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={() => { setProfileMenuOpen(false); openPasswordDialog(); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <Lock className="w-4 h-4 text-slate-400" />
+                    Change Password
+                  </button>
+                  <div className="mx-3 my-1.5 border-t border-slate-100 dark:border-slate-800" />
+                  <button
+                    onClick={() => { setProfileMenuOpen(false); handleLogout(); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -379,33 +432,13 @@ const StudentDashboard = () => {
           <div className="relative z-10 flex items-start gap-6">
             <Avatar className="h-20 w-20 border-4 border-white/20 shadow-lg shrink-0 hidden md:flex">
               <AvatarFallback className="bg-white/15 backdrop-blur-sm text-white text-2xl font-bold">
-                {getInitials(user?.name)}
+                {getInitials(studentDetails?.name || user?.name)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <p className="text-indigo-200 text-sm font-medium mb-1">Welcome back,</p>
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{user?.name || "Student"}</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{studentDetails?.name || user?.name || "Student"}</h1>
               <p className="text-indigo-200/80 max-w-lg">View and manage your blockchain-verified certificates.</p>
-              <div className="flex gap-4 mt-6">
-                {[
-                  { key: "all", count: studentCerts.length, label: "All Certificates" },
-                  { key: "academic", count: academicCerts.length, label: "Academic" },
-                  { key: "activity", count: activityCerts.length, label: "Extracurricular" },
-                ].map((f) => (
-                  <button
-                    key={f.key}
-                    onClick={() => setActiveFilter(f.key)}
-                    className={`rounded-xl px-5 py-3 border transition-all duration-200 text-left cursor-pointer ${
-                      activeFilter === f.key
-                        ? "bg-white/20 border-white/30 ring-2 ring-white/30 scale-[1.02]"
-                        : "bg-white/10 border-white/10 hover:bg-white/15 hover:border-white/20"
-                    }`}
-                  >
-                    <p className="text-2xl font-bold text-white">{f.count}</p>
-                    <p className="text-xs text-indigo-200">{f.label}</p>
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -420,20 +453,20 @@ const StudentDashboard = () => {
               <p className="text-slate-600 dark:text-slate-400">Loading your certificates...</p>
             </div>
           </div>
-        ) : filteredCerts.length > 0 ? (
+        ) : studentCerts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredCerts.map((cert) => (
+            {studentCerts.map((cert) => (
               <CertificateCard key={cert._id || cert.id} cert={cert} />
             ))}
           </div>
         ) : (
-          <EmptyState type={activeFilter === "academic" ? "Academic" : activeFilter === "activity" ? "Extracurricular" : ""} />
+          <EmptyState type={""} />
         )}
       </main>
 
       {/* ===== Profile Dialog ===== */}
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5 text-indigo-500" />
@@ -481,13 +514,6 @@ const StudentDashboard = () => {
               <Label htmlFor="profile-dob">Date of Birth</Label>
               <Input id="profile-dob" type="date" value={profileForm.dob} onChange={(e) => setProfileForm((p) => ({ ...p, dob: e.target.value }))} className="h-10" />
             </div>
-            <button
-              type="button"
-              onClick={() => { setIsProfileOpen(false); setTimeout(() => openPasswordDialog(), 200); }}
-              className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline pt-1"
-            >
-              <Lock className="w-3.5 h-3.5" /> Change Password
-            </button>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
