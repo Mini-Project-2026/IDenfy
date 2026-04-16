@@ -379,7 +379,7 @@ const ManageStudentsPage = ({ onDataChanged }) => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Users className="w-6 h-6 text-indigo-500" />
-            Manage Students
+            Students
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {loading ? "Loading..." : `${students.length} registered student${students.length !== 1 && "s"}`}

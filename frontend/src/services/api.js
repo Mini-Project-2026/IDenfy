@@ -69,4 +69,7 @@ export const getCertificatesByStudent = (rollNo) =>
 export const deleteCertificate = (id) =>
   API.delete(`/fileUpload/delete-certificate/${id}`);
 
+export const getMyProfile = () => API.get("/users/me");
+export const changePassword = (data) => API.put("/users/change-password", data);
+
 export default API;
