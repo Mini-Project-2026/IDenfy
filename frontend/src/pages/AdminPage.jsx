@@ -1,5 +1,7 @@
 import React, { useMemo, useEffect } from "react";
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import { Button } from "@/components/ui/button";
 import {
   Users,
@@ -150,21 +152,18 @@ const AdminPage = () => {
   }, [fetchDashboardStats, fetchCertificates]);
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
-        {/* Logo */}
-        <div className="h-16 px-6 flex items-center gap-2.5 border-b border-slate-200 dark:border-slate-800">
-          <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-            <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <span className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">
-            IDenfy{" "}
-            <span className="text-xs font-normal text-slate-400 dark:text-slate-500">
-              Admin
+    <div className="flex flex-col h-screen overflow-hidden font-sans">
+      <Navbar />
+      <div className="flex-1 bg-slate-100 dark:bg-slate-950 flex overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 z-20 h-full overflow-y-auto hidden md:flex">
+          {/* Default User info as the Admin title */}
+          <div className="h-16 px-6 flex items-center gap-2.5 border-b border-slate-200 dark:border-slate-800">
+            <UserCog className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+            <span className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">
+              Admin Area
             </span>
-          </span>
-        </div>
+          </div>
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1">
@@ -203,11 +202,12 @@ const AdminPage = () => {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <Routes>
-          <Route
-            path="dashboard"
-            element={
+      <main className="flex-1 h-full overflow-y-auto flex flex-col">
+        <div className="flex-1">
+          <Routes>
+            <Route
+              path="dashboard"
+              element={
               <div className="p-8 pb-16">
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
                   Welcome back, {user?.name || "Admin"}
@@ -327,17 +327,19 @@ const AdminPage = () => {
                           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
                             <thead>
                               <tr>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Certificate Name</th>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Student</th>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Date</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Certificate Name</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Student</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Roll No</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Date</th>
                               </tr>
                             </thead>
                             <tbody>
                               {certs.map(cert => (
                                 <tr key={cert._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                  <td className="px-4 py-2 text-slate-900 dark:text-white font-medium">{cert.certificateName || cert.course || 'Certificate'}</td>
-                                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{cert.user?.name || 'N/A'}</td>
-                                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{cert.createdAt ? cert.createdAt.substring(0, 10) : ''}</td>
+                                  <td className="px-5 py-3 text-slate-900 dark:text-white font-medium">{cert.certificateName || cert.course || 'Certificate'}</td>
+                                  <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{cert.user?.name || 'N/A'}</td>
+                                  <td className="px-5 py-3"><span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300">{cert.user?.roll_no || 'N/A'}</span></td>
+                                  <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{cert.createdAt ? cert.createdAt.substring(0, 10) : ''}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -360,17 +362,19 @@ const AdminPage = () => {
                           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
                             <thead>
                               <tr>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Certificate Name</th>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Student</th>
-                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Date</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Certificate Name</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Student</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Roll No</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400">Date</th>
                               </tr>
                             </thead>
                             <tbody>
                               {certs.map(cert => (
                                 <tr key={cert._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                  <td className="px-4 py-2 text-slate-900 dark:text-white font-medium">{cert.certificateName || cert.course || 'Certificate'}</td>
-                                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{cert.user?.name || 'N/A'}</td>
-                                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{cert.createdAt ? cert.createdAt.substring(0, 10) : ''}</td>
+                                  <td className="px-5 py-3 text-slate-900 dark:text-white font-medium">{cert.certificateName || cert.course || 'Certificate'}</td>
+                                  <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{cert.user?.name || 'N/A'}</td>
+                                  <td className="px-5 py-3"><span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300">{cert.user?.roll_no || 'N/A'}</span></td>
+                                  <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{cert.createdAt ? cert.createdAt.substring(0, 10) : ''}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -388,7 +392,10 @@ const AdminPage = () => {
           <Route path="issue" element={<IssueCertificatePage onCertificateIssued={() => { fetchDashboardStats(); fetchCertificates(); }} />} />
           <Route path="sub-admins" element={<ManageSubAdminsPage />} />
         </Routes>
+        </div>
+        <Footer />
       </main>
+      </div>
     </div>
   );
 };

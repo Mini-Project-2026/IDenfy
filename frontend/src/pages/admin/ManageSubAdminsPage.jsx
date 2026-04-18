@@ -349,14 +349,15 @@ const ManageSubAdminsPage = () => {
       </Card>
 
       {/* Admins Table */}
-      <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800 overflow-hidden">
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                <TableHead className="font-semibold">Authority Name</TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold text-right">
+                <TableHead className="font-bold text-sm">Authority Name</TableHead>
+                <TableHead className="font-bold text-sm">Email</TableHead>
+                <TableHead className="font-bold text-sm text-right pr-6">
                   Actions
                 </TableHead>
               </TableRow>
@@ -374,23 +375,23 @@ const ManageSubAdminsPage = () => {
                     key={admin.id}
                     className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
                   >
-                    <TableCell className="font-medium text-slate-900 dark:text-white">
+                    <TableCell className="font-semibold text-sm text-slate-900 dark:text-white">
                       {admin.name}
                     </TableCell>
-                    <TableCell className="text-slate-600 dark:text-slate-400">
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                       {admin.email}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <TableCell className="text-right pr-6">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditOpen(admin)}
                           className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                          title="Edit Admin"
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
-
                       </div>
                     </TableCell>
                   </TableRow>
@@ -409,6 +410,7 @@ const ManageSubAdminsPage = () => {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

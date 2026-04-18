@@ -47,6 +47,10 @@ export const getUserCertificates = () =>
 export const getAllCertificates = () =>
   API.get("/fileUpload/get-files");
 
+export const downloadCertificateApi = (cid) => {
+  window.open(`${API.defaults.baseURL}/fileUpload/download/${cid}`, "_blank");
+};
+
 // ✅ Keep both sets of functions
 export const getMyProfile = () =>
   API.get("/users/me");

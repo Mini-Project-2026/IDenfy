@@ -154,6 +154,7 @@ export const verifyCertificate = async (req, res) => {
                 certificateData = {
                     cid: image.cid,
                     url: image.url,
+                    certificateName: image.certificateName,
                     issuedAt: image.createdAt.toISOString()
                 };
             }
@@ -168,6 +169,7 @@ export const verifyCertificate = async (req, res) => {
                     certificateData = {
                         cid: image.cid,
                         url: image.url,
+                        certificateName: image.certificateName,
                         issuedAt: image.createdAt.toISOString()
                     };
                 }
@@ -183,6 +185,7 @@ export const verifyCertificate = async (req, res) => {
                     certificateData = {
                         cid: image.cid,
                         url: image.url,
+                        certificateName: image.certificateName,
                         issuedAt: image.createdAt.toISOString()
                     };
                 }
@@ -196,7 +199,10 @@ export const verifyCertificate = async (req, res) => {
         // Prepare response with all details
         const response = {
             message: 'Certificate successfully verified',
+            studentName: user.name,
             rollNo: user.roll_no,
+            department: user.department,
+            certificateName: certificateData.certificateName,
             cid: certificateData.cid,
             url: certificateData.url,
             ipfsLink: `https://ipfs.io/ipfs/${certificateData.cid}`,

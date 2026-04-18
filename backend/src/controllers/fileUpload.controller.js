@@ -20,10 +20,31 @@ import { Image } from '../models/file.models.js';
 import { User } from '../models/user.models.js';
 import { storeCertificateOnBlockchain } from './fabricService.controller.js';
 
+// Controller: Download Certificate
+export const downloadCertificate = async (req, res) => {
+    try {
+        const { cid } = req.params;
+        if (!cid) {
+            return res.status(400).json({ error: 'CID is required' });
+        }
+
+        const stream = ipfs.cat(cid);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="certificate-${cid}.pdf"`);
+        
+        for await (const chunk of stream) {
+            res.write(chunk);
+        }
+        res.end();
+    } catch (err) {
+        console.error('Download error:', err);
+        res.status(500).json({ error: 'Failed to download file from IPFS' });
+    }
+};
 
 // export const uploadImage =  async (req, res) => {
 //   try {
-//     const file = req.file;
 //     const userId = req.user?.userId; // Get authenticated user's ID from JWT
 
 //     if(!file){
@@ -265,11 +286,20 @@ export const uploadImageForUser = async (req, res) => {
         });
     }
 
-    // Upload to IPFS
+    // Upload to IPFS to get CID
     const result = await ipfs.add(file.buffer);
-    await ipfs.pin.add(result.cid);
-
     const cid = result.cid.toString();
+
+    // Check if this identical file (same CID) already exists in the database
+    const existingImage = await Image.findOne({ cid }).populate('user');
+    if (existingImage) {
+        return res.status(409).json({
+            success: false,
+            message: `Duplicate File: This exact certificate was already issued to ${existingImage.user?.name || 'another student'}. Please provide a unique certificate.`
+        });
+    }
+
+    await ipfs.pin.add(result.cid);
     const url = `http://127.0.0.1:8080/ipfs/${cid}`;
 
     // Save to MongoDB with target user reference (not admin)
