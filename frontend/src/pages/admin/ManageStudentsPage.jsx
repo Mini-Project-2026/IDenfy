@@ -441,25 +441,19 @@ const ManageStudentsPage = ({ onDataChanged }) => {
       </Card>
 
       {/* Student Table */}
-      <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800 overflow-hidden">
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Roll No</TableHead>
-                <TableHead className="font-semibold">Department</TableHead>
-                {isAdmin && (
-                  <TableHead className="font-semibold text-right">
-                    Actions
-                  </TableHead>
-                )}
-                {!isAdmin && (
-                  <TableHead className="font-semibold text-right">
-                    View
-                  </TableHead>
-                )}
+                <TableHead className="font-bold text-sm">Name</TableHead>
+                <TableHead className="font-bold text-sm">Email</TableHead>
+                <TableHead className="font-bold text-sm">Roll No</TableHead>
+                <TableHead className="font-bold text-sm">Department</TableHead>
+                <TableHead className="font-bold text-sm text-right pr-6">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -475,54 +469,54 @@ const ManageStudentsPage = ({ onDataChanged }) => {
                     key={student.id}
                     className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
                   >
-                    <TableCell className="font-medium text-slate-900 dark:text-white">
+                    <TableCell className="font-semibold text-sm text-slate-900 dark:text-white">
                       {student.name}
                     </TableCell>
-                    <TableCell className="text-slate-600 dark:text-slate-400">
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                       {student.email}
                     </TableCell>
                     <TableCell>
-                      <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300">
+                      <span className="font-mono text-xs font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300">
                         {student.rollNo}
                       </span>
                     </TableCell>
-                    <TableCell className="text-slate-600 dark:text-slate-400">
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                       {student.department}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setViewStudent(student);
-                          setIsViewOpen(true);
-                          setCertLoading(true);
-                          getCertificatesByStudent(student.rollNo)
-                            .then(res => {
-                              let certs = res.data.files || [];
-                              setStudentCertificates(certs);
-                            })
-                            .catch(() => setStudentCertificates([]))
-                            .finally(() => setCertLoading(false));
-                        }}
-                        className="h-8 w-8 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                        title="View Profile"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      {isAdmin && (
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <TableCell className="text-right pr-6">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setViewStudent(student);
+                            setIsViewOpen(true);
+                            setCertLoading(true);
+                            getCertificatesByStudent(student.rollNo)
+                              .then(res => {
+                                let certs = res.data.files || [];
+                                setStudentCertificates(certs);
+                              })
+                              .catch(() => setStudentCertificates([]))
+                              .finally(() => setCertLoading(false));
+                          }}
+                          className="h-8 w-8 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                          title="View Profile"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        {isAdmin && (
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEditOpen(student)}
                             className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                            title="Edit Student"
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
-                          {/* Delete user button removed as requested */}
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -540,6 +534,7 @@ const ManageStudentsPage = ({ onDataChanged }) => {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -598,51 +593,51 @@ const ManageStudentsPage = ({ onDataChanged }) => {
 
       {/* View Student Profile Dialog */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto p-0">
+          <DialogHeader className="px-8 pt-8 pb-4">
+            <DialogTitle className="flex items-center gap-2.5 text-xl">
               <Eye className="w-5 h-5 text-emerald-500" />
               Student Profile
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm mt-1">
               Full details and certificates for {viewStudent?.name}.
             </DialogDescription>
           </DialogHeader>
 
           {viewStudent && (
-            <div className="space-y-6 py-2">
+            <div className="space-y-8 px-8 pb-8">
               {/* Student Info Card */}
-              <div className="bg-gradient-to-br from-indigo-50 to-slate-50 dark:from-indigo-950/20 dark:to-slate-900/50 rounded-xl p-5 border border-indigo-100 dark:border-indigo-900/30">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center">
-                    <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+              <div className="bg-gradient-to-br from-indigo-50 to-slate-50 dark:from-indigo-950/20 dark:to-slate-900/50 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900/30">
+                <div className="flex items-center gap-5 mb-6">
+                  <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center">
+                    <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                       {viewStudent.name.charAt(0)}
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{viewStudent.name}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{viewStudent.department}</p>
+                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{viewStudent.name}</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{viewStudent.department}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 bg-white/60 dark:bg-slate-800/40 rounded-lg px-4 py-3">
+                    <Mail className="w-4 h-4 text-indigo-400 shrink-0" />
                     <span className="truncate">{viewStudent.email}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                    <Hash className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-mono">{viewStudent.rollNo}</span>
+                  <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 bg-white/60 dark:bg-slate-800/40 rounded-lg px-4 py-3">
+                    <Hash className="w-4 h-4 text-indigo-400 shrink-0" />
+                    <span className="font-mono font-medium">{viewStudent.rollNo}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                    <Building className="w-3.5 h-3.5 text-slate-400" />
+                  <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 bg-white/60 dark:bg-slate-800/40 rounded-lg px-4 py-3">
+                    <Building className="w-4 h-4 text-indigo-400 shrink-0" />
                     <span>{viewStudent.department}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 bg-white/60 dark:bg-slate-800/40 rounded-lg px-4 py-3">
+                    <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
                     <span>Enrolled: {viewStudent.enrolledDate || "N/A"}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 bg-white/60 dark:bg-slate-800/40 rounded-lg px-4 py-3">
+                    <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
                     <span>DOB: {viewStudent.dob || "N/A"}</span>
                   </div>
                 </div>
@@ -729,7 +724,7 @@ const ManageStudentsPage = ({ onDataChanged }) => {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="px-8 pb-8 pt-2">
             <DialogClose asChild>
               <Button variant="ghost">Close</Button>
             </DialogClose>

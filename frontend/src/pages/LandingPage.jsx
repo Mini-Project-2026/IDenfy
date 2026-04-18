@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { verifyCertificate } from "../mockData";
+import { verifyCertificate, downloadCertificateApi } from "../services/api";
 import {
   Card,
   CardContent,
@@ -12,6 +12,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import {
   CheckCircle,
   XCircle,
@@ -24,225 +26,203 @@ import {
   Phone,
   Globe,
   ExternalLink,
+  Loader2,
+  Download,
 } from "lucide-react";
 
 const LandingPage = () => {
   const [cidQuery, setCidQuery] = useState("");
   const [verificationResult, setVerificationResult] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleVerify = (e) => {
+  const handleVerify = async (e) => {
     e.preventDefault();
     if (!cidQuery.trim()) return;
 
+    setIsLoading(true);
     setHasSearched(true);
-    const result = verifyCertificate(cidQuery);
-    setVerificationResult(result || null);
+    setVerificationResult(null);
+
+    try {
+      const { data } = await verifyCertificate(cidQuery.trim());
+      setVerificationResult(data);
+    } catch (err) {
+      // 404 or any error means not found
+      setVerificationResult(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans">
-      {/* ===== Navbar ===== */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-              <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <span className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">
-              IDenfy
-            </span>
-          </Link>
-          <Link to="/login">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-            >
-              <LogIn className="w-4 h-4" />
-              Login
-            </Button>
-          </Link>
-        </div>
-      </header>
+      <Navbar />
 
       {/* ===== Main Content ===== */}
-      <main className="flex-1 flex flex-col items-center pt-20 pb-16 px-4">
-        {/* Hero Section */}
-        <div className="max-w-3xl text-center space-y-6 mb-16">
-          <div className="inline-flex items-center justify-center p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-full mb-4">
-            <Award className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Verify Blockchain <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-400">
-              Credentials instantly.
-            </span>
-          </h1>
-          <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-            IDenfy provides an immutable, transparent, and secure
-            way to issue and verify government and academic certificates.
-          </p>
-        </div>
-
-        {/* Quick Verify Section */}
-        <div className="w-full max-w-2xl bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800">
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-            <Search className="w-6 h-6 text-indigo-500" />
-            Quick Verify
-          </h2>
-
-          <form onSubmit={handleVerify} className="flex flex-col sm:flex-row gap-3 mb-8">
-            <Input
-              type="text"
-              placeholder="Enter Blockchain CID (e.g., CID-12345)"
-              value={cidQuery}
-              onChange={(e) => setCidQuery(e.target.value)}
-              className="flex-1 h-12"
-            />
-            <Button type="submit" className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white">
-              Verify
-            </Button>
-          </form>
-
-          {/* Results Area */}
-          {hasSearched && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {verificationResult ? (
-                <Card className="border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 relative overflow-hidden shadow-none">
-                  <div className="absolute top-0 right-0 p-4">
-                    <Badge variant="outline" className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 gap-1.5 py-1 px-3">
-                      <CheckCircle className="w-4 h-4" />
-                      Blockchain Verified
-                    </Badge>
-                  </div>
-                  <CardHeader>
-                    <CardDescription className="text-sm font-medium">OFFICIAL RECORD</CardDescription>
-                    <CardTitle className="text-2xl">{verificationResult.studentName}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Institution</p>
-                        <p className="font-medium text-slate-900 dark:text-white">
-                          {verificationResult.institution}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Course / Degree</p>
-                        <p className="font-medium text-slate-900 dark:text-white">
-                          {verificationResult.course}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Issue Date</p>
-                        <p className="font-medium text-slate-900 dark:text-white">
-                          {new Date(verificationResult.issueDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">CID</p>
-                        <p className="font-mono text-xs text-slate-600 dark:text-slate-300 break-all bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 inline-block mt-1">
-                          {verificationResult.cid}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-red-100 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 text-center shadow-none p-8">
-                  <div className="inline-flex items-center justify-center p-3 bg-red-100 dark:bg-red-900/30 rounded-full mb-3">
-                    <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-red-900 dark:text-red-300 mb-1">
-                    No Record Found
-                  </h3>
-                  <p className="text-red-700/80 dark:text-red-400/80 text-sm max-w-md mx-auto">
-                    The provided CID does not match any official certificates in our blockchain registry. Please check the ID and try again.
-                  </p>
-                </Card>
-              )}
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* ===== Footer ===== */}
-      <footer className="bg-slate-900 dark:bg-slate-950 border-t border-slate-800 text-slate-400">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {/* About */}
-            <div>
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="p-1.5 bg-indigo-900/40 rounded-lg">
-                  <Shield className="w-5 h-5 text-indigo-400" />
-                </div>
-                <span className="font-bold text-lg text-white tracking-tight">IDenfy</span>
+      <main className="flex-1 flex flex-col items-center pt-20 pb-16 w-full" id="home">
+        {/* Verify Section */}
+        <section id="verify" className="w-full flex justify-center px-4 mb-24">
+          <div className="w-full max-w-2xl flex flex-col items-center">
+            {/* Hero Section */}
+            <div className="max-w-3xl text-center space-y-6 mb-16">
+              <div className="inline-flex items-center justify-center p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-full mb-4">
+                <Award className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
               </div>
-              <p className="text-sm leading-relaxed">
-                IDenfy is a blockchain-powered certificate verification platform
-                that ensures the authenticity and integrity of academic and
-                government-issued credentials. Tamper-proof, transparent, and
-                instantly verifiable.
+              <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Verify Blockchain <br className="hidden md:block" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-400">
+                  Credentials instantly.
+                </span>
+              </h1>
+              <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                IDenfy provides an immutable, transparent, and secure
+                way to issue and verify government and academic certificates.
               </p>
             </div>
 
-            {/* Quick Links */}
-            <div>
-              <h3 className="text-white font-semibold mb-4">Quick Links</h3>
-              <ul className="space-y-2.5 text-sm">
-                <li>
-                  <Link to="/" className="hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                    <ExternalLink className="w-3.5 h-3.5" /> Home
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/login" className="hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                    <LogIn className="w-3.5 h-3.5" /> Login Portal
-                  </Link>
-                </li>
-                <li>
-                  <a href="#verify" className="hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                    <Search className="w-3.5 h-3.5" /> Verify Certificate
-                  </a>
-                </li>
-                <li>
-                  <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5" /> GitHub Repository
-                  </a>
-                </li>
-              </ul>
-            </div>
+            {/* Quick Verify box */}
+            <div className="w-full bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800">
+              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                <Search className="w-6 h-6 text-indigo-500" />
+                Quick Verify
+              </h2>
 
-            {/* Contact */}
-            <div>
-              <h3 className="text-white font-semibold mb-4">Contact</h3>
-              <ul className="space-y-2.5 text-sm">
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-indigo-400 shrink-0" />
-                  support@idenfy.com
-                </li>
-                <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-indigo-400 shrink-0" />
-                  +91 98765 43210
-                </li>
-                <li className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                  National Defense Academy, Pune, India
-                </li>
-              </ul>
+              <form onSubmit={handleVerify} className="flex flex-col sm:flex-row gap-3 mb-8">
+                <Input
+                  type="text"
+                  placeholder="Enter Certificate CID or Roll Number"
+                  value={cidQuery}
+                  onChange={(e) => setCidQuery(e.target.value)}
+                  className="flex-1 h-12"
+                />
+                <Button
+                  type="submit"
+                  className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Verifying…
+                    </>
+                  ) : (
+                    "Verify"
+                  )}
+                </Button>
+              </form>
+
+              {/* Results Area */}
+              {hasSearched && !isLoading && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {verificationResult ? (
+                    <Card className="border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 relative overflow-hidden shadow-none">
+                      <div className="absolute top-0 right-0 p-4">
+                        <Badge variant="outline" className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 gap-1.5 py-1 px-3">
+                          <CheckCircle className="w-4 h-4" />
+                          Blockchain Verified
+                        </Badge>
+                      </div>
+                      <CardHeader>
+                        <CardDescription className="text-sm font-medium">OFFICIAL RECORD</CardDescription>
+                        <CardTitle className="text-2xl">{verificationResult.studentName}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                          <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Department</p>
+                            <p className="font-medium text-slate-900 dark:text-white">
+                              {verificationResult.department}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Certificate</p>
+                            <p className="font-medium text-slate-900 dark:text-white">
+                              {verificationResult.certificateName}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Roll No</p>
+                            <p className="font-medium text-slate-900 dark:text-white">
+                              {verificationResult.rollNo}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Issue Date</p>
+                            <p className="font-medium text-slate-900 dark:text-white">
+                              {new Date(verificationResult.issuedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="sm:col-span-2 pt-4 flex flex-col sm:flex-row gap-4 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex-1">
+                              <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">CID</p>
+                              <p className="font-mono text-xs text-slate-600 dark:text-slate-300 break-all bg-white dark:bg-slate-900 px-2 py-1.5 rounded border border-slate-200 dark:border-slate-800 inline-block">
+                                {verificationResult.cid}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-red-100 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 text-center shadow-none p-8">
+                      <div className="inline-flex items-center justify-center p-3 bg-red-100 dark:bg-red-900/30 rounded-full mb-3">
+                        <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-red-900 dark:text-red-300 mb-1">
+                        No Record Found
+                      </h3>
+                      <p className="text-red-700/80 dark:text-red-400/80 text-sm max-w-md mx-auto">
+                        The provided CID does not match any official certificates in our blockchain registry. Please check the ID and try again.
+                      </p>
+                    </Card>
+                  )}
+                </div>
+              )}
             </div>
           </div>
+        </section>
 
-          {/* Bottom Bar */}
-          <div className="mt-10 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-            <p>&copy; {new Date().getFullYear()} IDenfy. All rights reserved.</p>
-            <p>
-              Built with <span className="text-indigo-400">Blockchain</span> &middot; Powered by <span className="text-indigo-400">Hyperledger</span>
-            </p>
+        {/* About Section */}
+        <section id="about" className="w-full bg-white dark:bg-slate-900 border-t border-b border-slate-200 dark:border-slate-800 py-20 px-4">
+          <div className="max-w-4xl mx-auto text-center space-y-12">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">About IDenfy</h2>
+              <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
+                IDenfy was created to solve the growing problem of credential fraud. We use decentralized ledger technology (Hyperledger Fabric) securely integrated with InterPlanetary File System (IPFS) to provide a single source of truth for educational and professional certificates.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+              <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <Shield className="w-10 h-10 text-indigo-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Immutable Records</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                  Once a certificate is issued on IDenfy, it is permanently etched into the blockchain, ensuring it cannot be forged, tampered with, or secretly modified.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <Globe className="w-10 h-10 text-indigo-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Decentralized Storage</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                  We use IPFS to store the actual certificate files, generating a unique Content Identifier (CID). This prevents duplication and single points of failure.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <CheckCircle className="w-10 h-10 text-indigo-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Instant Verification</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                  Employers and institutions can instantly verify the authenticity of a certificate worldwide without needing to contact the issuing university.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-      </footer>
+        </section>
+      </main>
+
+      <Footer />
     </div>
   );
 };

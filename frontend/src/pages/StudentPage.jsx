@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { getUserCertificates, getMyProfile, updateUser, changePassword as changePasswordApi } from "../services/api";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import { getUserCertificates, getMyProfile, updateUser, changePassword as changePasswordApi, downloadCertificateApi } from "../services/api";
 import {
   Card,
   CardContent,
@@ -189,8 +191,9 @@ const StudentDashboard = () => {
   const handleDownload = (cert) => {
     toast({
       title: "Download Started",
-      description: `Downloading "${cert.course}" certificate...`,
+      description: `Downloading "${cert.certificateName || cert.course || "Certificate"}"...`,
     });
+    downloadCertificateApi(cert.cid);
   };
 
   const handleLogout = () => {
@@ -321,7 +324,7 @@ const StudentDashboard = () => {
           <p className="font-mono text-xs text-slate-600 dark:text-slate-300 break-all">{cert.cid}</p>
         </div>
       </CardContent>
-      <CardFooter className="pt-0 gap-2">
+      <CardFooter className="pt-4 gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -368,71 +371,15 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950">
       {/* Top Nav */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-              <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <span className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">
-              IDenfy <span className="text-xs font-normal text-slate-400 dark:text-slate-500">Student</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                onClick={() => setProfileMenuOpen((v) => !v)}
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                id="profile-btn"
-                type="button"
-              >
-                <Avatar className="h-8 w-8 border-2 border-indigo-200 dark:border-indigo-800">
-                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-xs font-semibold">
-                    {getInitials(studentDetails?.name || user?.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 hidden sm:inline">
-                  {studentDetails?.name || user?.name}
-                </span>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <button
-                    onClick={() => { setProfileMenuOpen(false); openProfile(); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <Pencil className="w-4 h-4 text-slate-400" />
-                    Edit Profile
-                  </button>
-                  <button
-                    onClick={() => { setProfileMenuOpen(false); openPasswordDialog(); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <Lock className="w-4 h-4 text-slate-400" />
-                    Change Password
-                  </button>
-                  <div className="mx-3 my-1.5 border-t border-slate-100 dark:border-slate-800" />
-                  <button
-                    onClick={() => { setProfileMenuOpen(false); handleLogout(); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Welcome Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-800 p-8 mb-8 shadow-lg shadow-indigo-200/50 dark:shadow-none">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
-          <div className="absolute bottom-0 left-1/3 w-40 h-40 bg-white/5 rounded-full translate-y-1/2" />
-          <div className="relative z-10 flex items-start gap-6">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-800 p-8 mb-8 shadow-lg shadow-indigo-200/50 dark:shadow-none flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 pointer-events-none" />
+          
+          <div className="relative z-10 flex items-start md:items-center gap-6">
             <Avatar className="h-20 w-20 border-4 border-white/20 shadow-lg shrink-0 hidden md:flex">
               <AvatarFallback className="bg-white/15 backdrop-blur-sm text-white text-2xl font-bold">
                 {getInitials(studentDetails?.name || user?.name)}
@@ -443,6 +390,25 @@ const StudentDashboard = () => {
               <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{studentDetails?.name || user?.name || "Student"}</h1>
               <p className="text-indigo-200/80 max-w-lg">View and manage your blockchain-verified certificates.</p>
             </div>
+          </div>
+
+          <div className="relative z-10 flex gap-3 shrink-0">
+            <Button 
+               variant="outline" 
+               className="bg-white/10 hover:bg-white/20 text-white border-white/20 w-full sm:w-auto"
+               onClick={() => openProfile()}
+            >
+              <Pencil className="w-4 h-4 mr-2" />
+              Edit Profile
+            </Button>
+            <Button 
+               variant="outline" 
+               className="bg-white/10 hover:bg-white/20 text-white border-white/20 w-full sm:w-auto"
+               onClick={() => openPasswordDialog()}
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Change Password
+            </Button>
           </div>
         </div>
 
@@ -585,6 +551,8 @@ const StudentDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Footer />
     </div>
   );
 };
